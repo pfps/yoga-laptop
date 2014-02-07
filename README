@@ -17,7 +17,7 @@ to put them into a reasonable state.
 
 There is a program that reads the 3D accelerometer on the screen, determines
 the screen's orientation, and rotates it and the touchscreen appropriately.
-The program is available at ....
+The program is available at https://github.com/pfps/yoga-laptop.git
 
 
 The Yoga 2 Pro (and other Yogas) has 17 labeled Fn keys on the keypad and
