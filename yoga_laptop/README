@@ -1,0 +1,34 @@
+		Lenovo Yoga Kernel Module
+
+This is the start of a Yoga-specific kernel module.  The ideapad_laptop
+kernel module doesn't work because the Yoga EC information is different
+from the standard Ideapad EC information.  As well, the Yoga does not have
+any physical RF kill switches.
+
+There is probably a lot more stuff that should be removed from this module.
+
+
+
+The module depends on the sparse keymap kernel module.  To ensure that this
+is available
+  sudo modprobe sparse_keymap
+Then to load the module itself
+  sudo insmod ./yoga_laptop.ko 
+
+
+Right now the only thing that this module is known to be useful for is to
+handle two keys (FnF7 and Novo) that only produce ACPI notifications.
+
+
+Problematic Yoga Special Keys
+
+Fn F5	Produces the same scan codes as F5
+Fn F6	Produces unrecognised scan codes, fix to produce XF86TouchPadToggle
+		sudo setkeycodes e03f 191
+Fn F7	Produces ACPI Notify 0x2000, fixed in this module
+Fn F9	Appears to work entirely in firmware
+Break	Works the same as Pause, fix to produce Break
+		sudo setkeycodes e046 124; xmodmap -e "keycode 132 = Break"
+Fn sp	Appears to work entirely in firmware
+Novo	Produces ACPI Notify 0x0008, fixed in this module
+Windows	The on-screen button is indistinguishable from the keyboard key

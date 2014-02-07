@@ -1,0 +1,13 @@
+	TODO List
+
+Set sensor device/file permissions automagically
+
+Replace execs of randr and xinput
+
+Do something similar for the ambient light sensor
+
+Use the inclinometer instead in kernel 3.13
+
+Write code to deterime hinge angle from the two accelerometers
+
+Convert to use a bus to distribute results

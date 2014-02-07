@@ -1,0 +1,67 @@
+The Yoga 2 Pro (and some other Yogas) have an HID sensor hub connected to an
+ambient light sensor, a 3D accelerometer on the screen, a 3D gyrometer on
+the screen, a 3D compass on the screen, a 3D inclinometer on the screen, a
+device orientation sensor, and a custom sensor that includes a 3D
+accelerometer on the base.  The 3D accelerometer on the screen can be used
+to determine the orientation of the screen.  The two accelerometers could be
+used to determine the hinge angle.
+
+The first four sensors partly work in 3.12 kernels that include the
+hid-sensor-hub and IIO bus drivers.  If /dev/iio:device0 exists then the
+drivers are available.  However, the sensors are not reliably initialized,
+because the drivers in 3.12 do not have all the features needed to set up
+these sensors.  The sensors can, individually, end up either making no
+reports, making reports only when values change significantly, or making a
+stream of reports.  It appears that poking the sensors and rebooting tends
+to put them into a reasonable state.
+
+There is a program that reads the 3D accelerometer on the screen, determines
+the screen's orientation, and rotates it and the touchscreen appropriately.
+The program is available at ....
+
+
+The Yoga 2 Pro (and other Yogas) has 17 labeled Fn keys on the keypad and
+six other buttons.  The 12 Fn keys on the top row have Fn behaviour by default,
+whereas the other five have non-Fn behaviour by default.
+
+Mute (F1), Volume Down (F2), Volume Up (F3), Close Window (F4), Toggle
+Displays (F10), Screen Bright Dwn (F11), and Screen Bright Up (F12) keys all
+produce characters and/or ACPI events that are hooked up to correct actions
+in XFCE 4.10.  The Volume Down and Volume Up buttons on the side appear to
+be indistinguishable from Volume Down (F2) and Volume Up (F3).  The Power
+key on the side produces an ACPI event that is correctly handled in XFCE
+4.10.
+
+ScrLk and Insert produce the correct characters, which are sent on to
+applications.
+
+Screen Backlight (F9) and Keyboard Backlight (space) appear to be handled in
+firmware.  They work correctly, but produce no keyboard scan codes at all.
+
+Display Apps (F8) produces Cntl_L Alt_L Tab, which does not elicit any
+special behaviour (under XFCE 4.10).  Rotation Lock on the side produces
+Super_L o, which does not elicit any special behaviour (under XFCE 4.10) but
+can be hotkeyed to signal the orientation program if desired.  The command
+to trigger is 'pkill --signal SIGUSR1 --exact orientation'.
+
+Disable Touchpad (F6) produces scan codes that are not recognized.  This can
+be fixed by 'sudo setkeycodes e03f 191' and then setting XF86TouchPadToggle
+to trigger a script to toggle the state of the touchpad.
+
+Pause and Break produce the same character.  This can be fixed by 
+'sudo setkeycodes e046 124; xmodmap -e "keycode 132 = Break"'.  Be sure that
+keycode 124 is not used for any other key.
+
+Airplane Mode (F7) produces ACPI Notify 0x2000, which is correctly handled
+by the ideapad_laptop module.  The Novo button on the side produces ACPI
+Notify 0x0008, which is reasonably handled by the ideapad_laptop module.
+However, ideapad_laptop breaks other things and need to be fixed to work on
+Yogas.
+
+Refresh Desktop (F5) appears to be indistinguishable from F5.  
+
+The Windows button on the screen appears to be indistinguishable from the
+Windows key on the keyboard, except that both the down and up events are
+triggered on button release.  It is thus practically useless.  Changing the
+behaviour of this key would permit it to be used to modify touchscreen
+touches.

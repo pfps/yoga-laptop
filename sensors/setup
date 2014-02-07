@@ -1,0 +1,12 @@
+#!/bin/sh
+# Fix up permissions for all sensors and run orientation program
+# Single optional argument is group to use
+
+group=${GROUPS[0]}
+
+sudo chgrp ${group} /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
+sudo chmod g+w /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
+sudo chgrp ${group} /dev/iio:device*
+sudo chmod g+rw /dev/iio:device*
+
+./orientation

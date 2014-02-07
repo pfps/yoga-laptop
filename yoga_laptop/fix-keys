@@ -1,0 +1,9 @@
+#!/bin/bash
+# Fix two non-working keys on the Yoga keyboard
+
+# Fn F6 should produce XF86KeypadToggle
+sudo setkeycodes e03f 191
+# Break should produce Break (not Pause)
+# Keycode 124 should be unused
+sudo setkeycodes e046 124
+xmodmap -e "keycode 132 = Break"
