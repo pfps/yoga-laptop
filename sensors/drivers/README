@@ -1,0 +1,79 @@
+Here are several hacked-together drivers for the Yoga sensors that don't
+have drivers in 3.12.  
+
+The build system is also hacked together and needs to be improved.  Some
+include files have been copied into this directory.  This should all be
+fixed up.
+
+
+Some shortcuts had to be made because the common infrastructure doesn't
+support these kinds of drivers. 
+
+Drivers:
+
+hid-sensor-incl-3d.c
+	driver for inclinometer
+
+hid-sensor-orient.c
+	driver for orientation sensor that reports back a quaternion
+	the data is probably wrong here
+
+hid-sensor-custom.c
+	driver for custom sensor
+	the fields are stolen from other sensors
+
+hid-sensor-generic.c
+	driver for generic sensor
+	the common support can't handle some of the fields of this driver 
+
+
+Utility Program:
+	hid-example.c
+	utility program to print raw sensor samples
+	needs some work
+
+
+
+Yoga sensors and their channels
+
+Number			Type			Name
+
+HID-SENSOR-200041.0	Ambient Light		als
+HID-SENSOR-200073.0	Accelerometer 3D	accel_3d
+HID-SENSOR-200076.0	Gyrometer 3D  		gyro_3d
+HID-SENSOR-200083.0	Compass 3D		magn_3d
+HID-SENSOR-200086.0	Inclinometer 3D
+HID-SENSOR-20008a.0	Device Orientation
+HID-SENSOR-2000e1.0	Custom
+HID-SENSOR-2000e2.0	Generic 
+
+Sensor	 Channel	    What		Range/Values	
+
+als	 in_intensity_both  Ambient Light	38 Dark, 800 Room, ? Sunlight
+accel_3d in_accel_x 	    Screen accel left	1000 1g
+	 in_accel_y 	    Screen accel down	1000 1g
+	 in_accel_z	    Screen accel front	1000 1g
+gyro_3d	 in_anglvel_x
+	 in_anglvel_y
+	 in_anglvel_z
+magn_3d	 in_magn_x				-6000 to +6000
+	 in_magn_y				""
+	 in_magn_z				""
+incl_3d	 in_incli_x	    Screen rot L/R	1/100 degrees up from flat
+	 in_incli_y	    Screen rot F/B 	1/100 degrees from vertical
+	 in_incli_z	    Screen rot vertical	1/100 degrees from North?
+orientation in_XX_XX	    Quaternion??
+custom   in_accel_x	    Base accel left	1000 1g
+	 in_accel_y	    Base accel front
+	 in_accel_z	    Base accel up
+	 in_...		    Base rot L/R	1/10 degrees up from flat
+	 in_...		    ??
+	 in_...	    ??
+generic	 ??
+
+
+NOTES:
+
+Kernel includes		/usr/src/kernels/3.12.8-300.fc20.x86_64/include/linux/
+Sysfs IIO devices	/sys/bus/iio/devices/
+
