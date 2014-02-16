@@ -727,6 +727,51 @@ static int ideapad_acpi_remove(struct acpi_device *adevice)
         return 0;
 }
 
+
+
+#if 0
+/* Code to query WMI response - doesn't work?? */
+#define IDEAPAD_EVENT_GUID	"ABBC0F20-8EA1-11D1-00A0-C90629100000"
+#define IDEAPAD_IO_GUID		"ABBC0F40-8EA1-11D1-00A0-C90629100000"
+#define IDEAPAD_AE_GUID		"05901221-D566-11D1-B2F0-00A0C9062910"
+
+static int oldlen = 1000;
+static unsigned char oldresponse[4096];
+
+static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
+{
+	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+	status = wmi_query_block(IDEAPAD_AE_GUID, 1, &response);
+	if (ACPI_FAILURE(status))
+		return; 
+	obj = response.pointer;
+	if (obj && obj->type == ACPI_TYPE_BUFFER) {
+		int i;
+		for (i=0 ; i<obj->buffer.length; i++) {
+			if (!(i&0xf)) {
+				if (i)
+					pr_err("\n");
+				pr_err(KERN_INFO "%04x:", i);
+			}
+			pr_err(" %02x", ((unsigned char *)obj->buffer.pointer)[i]);
+		}
+		pr_err("\n");
+		for (i=0 ; i < obj->buffer.length && i < oldlen; i++) {
+			if (oldresponse[i] != obj->buffer.pointer[i])
+				pr_err(KERN_INFO "Byte %04x: %02x->%02x\n",
+				       i, oldresponse[i], obj->buffer.pointer[i]);
+		}
+		oldlen = min(sizeof(oldresponse), obj->buffer.length);
+		memcpy(oldresponse, obj->buffer.pointer, oldlen);
+	}
+	kfree(obj);
+}
+#endif
+
+
+#if 1
 static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 {
         struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
@@ -773,6 +818,7 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
                 }
         }
 }
+#endif
 
 static int ideapad_acpi_resume(struct device *device)
 {
