@@ -1,4 +1,4 @@
-/* Rotate Lenovo Yoga (2 Pro) display and ELAN Touchscreen to match orientation of screen 
+/* Rotate Lenovo Yoga (2 Pro) display and touchscreen to match orientation of screen 
  * Copyright (c) 2014 Peter F. Patel-Schneider
  *
  * Modified from industrialio buffer test code.
@@ -17,7 +17,7 @@
  * This program reads the Invensense accelerometer and uses gravity to
  * determine which edge of the Yoga screen is up.  If none of the edges is
  * up very much, this is treated as being flat.   When an edge is up twice
- * in a row, the orientation of the screen and ELAN Touchscreen is adjusted
+ * in a row, the orientation of the screen and touchscreen is adjusted
  * to match.
  *
  * WARNING:  This is not production quality code.  
@@ -365,7 +365,8 @@ void rotate_to(orient) {
   } else {
     wait(&status);
     if (status) printf("First child (xrandr) returned %d\n",status);
-    if ( 0 == (pid = fork()) ) { /* rotate the touchscreen */
+
+    if ( 0 != strlen(touchScreenName) && 0 == (pid = fork()) ) { /* rotate the touchscreen */
       switch ( orient ) {
       case TOP : execv(xinput,tsnormal);
 	break;

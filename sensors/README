@@ -13,7 +13,9 @@ programs can follow the sensors.
 orientation is a stand-alone program that monitors the accelerometer on a
 Yoga 2 Pro and rotates the screen and touchscreen (but not the touchpad).
 It should work on any laptop that has an IIO-enabled 3D accelerometer in the
-screen that uses the HID Hub identifiers for the sensor channels.
+screen and uses the HID Hub identifiers for the sensor channels.  The
+--touchscreen option will have to be used for laptops that don't have an
+ELAN Touchscreen - use xinput to find the name of your touchscreen device.
 
 The program needs the IIO bus drivers and the USB HID sensor hub driver configured
 into the kernel (generally these will be loadable modules).  If there is a
@@ -50,6 +52,7 @@ Options are
 	uses sensor_name for the IIO name of the accelerometer, default accel_3d
   --touchscreen=screen_name, -t screen_name
 	uses screen_name for the name of the touchscreen, default ELAN Touchscreen
+	set to empty string if you don't have a touchscreen or don't want to rotate it
 
 The program responds to a SIGUSR1 signal by suspending rotations due to
 orientation changes until another SIGUSR1 signal is received, except that if
