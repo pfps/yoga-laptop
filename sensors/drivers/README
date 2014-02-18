@@ -1,36 +1,55 @@
-Here are several hacked-together drivers for the Yoga sensors that don't
-have drivers in 3.12.  
+WARNING:  This is all lightly tested changes to kernel drivers.  
+          Use with extreme caution!
+
+
+		Drivers for Sensors
+
+Here are drivers for the Yoga sensors, including the patch to make the hub work better.
+
+To install the drivers themselves, just 
+   sudo modprobe -r hid-sensor<driver>
+   sudo insmod ./hid-sensor<driver>.ko
+
+To get the sensor hub to behave better is more involved.
+
+
+There are two kinds of drivers
+
+1/ Drivers from 3.14 - these should be good quality
+2/ Drivers for the other sensors - these probably need work
 
 The build system is also hacked together and needs to be improved.  Some
 include files have been copied into this directory.  This should all be
-fixed up.
+fixed up.  Some shortcuts had to be made because the common infrastructure
+doesn't support these kinds of drivers.
 
-
-Some shortcuts had to be made because the common infrastructure doesn't
-support these kinds of drivers. 
+NB:  Needs /usr/src/kernels/.../include/linux/hid-sensor-ids.h to be updated to the 3.14 version.
 
 Drivers:
 
-hid-sensor-incl-3d.c
-	driver for inclinometer
+hid-ids.h		From 3.14, plus patch to quirk the Yoga sensor
+drivers/hid-sensor-hub.c	From 3.14, plus patch to quirk the Yoga sensor
 
-hid-sensor-orient.c
+drivers/hid-sensor-trigger.c	From 3.14 (had a temporary patch)
+hid-sensor-trigger.h	From 3.14
+
+drivers/hid-sensor-als.c	From 3.14
+drivers/hid-sensor-accel-3d.c	From 3.14
+drivers/hid-sensor-gryo-3d.c	From 3.14
+drivers/hid-sensor-magn-3d.c	From 3.14
+drivers/hid-sensor-incl-3d.c	From 3.14 (new in 3.14)
+
+drivers/hid-sensor-orient.c	
 	driver for orientation sensor that reports back a quaternion
 	the data is probably wrong here
 
-hid-sensor-custom.c
+drivers/hid-sensor-custom.c
 	driver for custom sensor
 	the fields are stolen from other sensors
 
-hid-sensor-generic.c
+drivers/hid-sensor-generic.c
 	driver for generic sensor
 	the common support can't handle some of the fields of this driver 
-
-
-Utility Program:
-	hid-example.c
-	utility program to print raw sensor samples
-	needs some work
 
 
 
