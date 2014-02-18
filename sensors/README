@@ -6,6 +6,12 @@ This is not a production-quality system.  It should be turned into a program
 that reads the sensors and produces events on a system bus so that multiple
 programs can follow the sensors.
 
+The sensor hub in the Yoga 2 Pro does not behave the same as many other
+sensor hubs.  As a result, the sensors are not reliably initialized in 3.12
+and may be reliably mis-initialized in 3.13.  I have a patched
+hid-sensor-hub.c and hid-sensor-ids.h that appear to fix the problem.  This
+patch should get into distributed code in the near future.
+
 
 
 	Orientation Monitor and Screen Rotation
@@ -184,25 +190,12 @@ To unstick a device (maybe?)
 	echo NULL | sudo tee /sys/bus/iio/devices/iio:deviceX/trigger/current_trigger 
 
 
-To see sensor output do the following (provided that the sensor is not stuck):
-
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_intensity_both_en 
-  sudo ./generic_buffer -c 100 -n als
-
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_accel_x_en 
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_accel_y_en 
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_accel_z_en 
-  sudo ./generic_buffer -c 100 -n accel_3d
-
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_magn_x_en 
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_magn_y_en 
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_magn_z_en 
-  sudo ./generic_buffer -c 100 -n magn_3d
-
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_anglvel_x_en 
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_anglvel_y_en 
-  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_anglvel_z_en 
-  sudo ./generic_buffer -c 100 -n gyro_3d
+In 3.12, the light sensor is usually in a mode where it reports only on
+changes (but the changes are quantized in steps of 39).  The accelerometer,
+magnetometer, and gyroscope are free-running (i.e., the same values can be
+output multiple times in a row), although they are sensitive so some value
+usually changes each time.  In 3.13 the light sensor is the same, but the
+others are in some stuck state.
 
 
 The eight sensors can be seen in a directory named something like

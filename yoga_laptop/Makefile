@@ -1,5 +1,4 @@
-obj-m := yoga_laptop.o
-#obj-m := test.o
+obj-m := yoga_laptop.o test.o
 #KDIR := /lib/modules/$(shell uname -r)/build
 KDIR := /usr/src/kernels/$(shell uname -r)
 PWD := $(shell pwd)

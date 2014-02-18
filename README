@@ -1,67 +1,259 @@
-The Yoga 2 Pro (and some other Yogas) have an HID sensor hub connected to an
-ambient light sensor, a 3D accelerometer on the screen, a 3D gyrometer on
-the screen, a 3D compass on the screen, a 3D inclinometer on the screen, a
-device orientation sensor, and a custom sensor that includes a 3D
-accelerometer on the base.  The 3D accelerometer on the screen can be used
-to determine the orientation of the screen.  The two accelerometers could be
-used to determine the hinge angle.
-
-The first four sensors partly work in 3.12 kernels that include the
-hid-sensor-hub and IIO bus drivers.  If /dev/iio:device0 exists then the
-drivers are available.  However, the sensors are not reliably initialized,
-because the drivers in 3.12 do not have all the features needed to set up
-these sensors.  The sensors can, individually, end up either making no
-reports, making reports only when values change significantly, or making a
-stream of reports.  It appears that poking the sensors and rebooting tends
-to put them into a reasonable state.
-
-There is a program that reads the 3D accelerometer on the screen, determines
-the screen's orientation, and rotates it and the touchscreen appropriately.
-The program is available at https://github.com/pfps/yoga-laptop.git
+Do you feel lucky?
+  ./setup
 
 
-The Yoga 2 Pro (and other Yogas) has 17 labeled Fn keys on the keypad and
-six other buttons.  The 12 Fn keys on the top row have Fn behaviour by default,
-whereas the other five have non-Fn behaviour by default.
+This is not a production-quality system.  It should be turned into a program
+that reads the sensors and produces events on a system bus so that multiple
+programs can follow the sensors.
 
-Mute (F1), Volume Down (F2), Volume Up (F3), Close Window (F4), Toggle
-Displays (F10), Screen Bright Dwn (F11), and Screen Bright Up (F12) keys all
-produce characters and/or ACPI events that are hooked up to correct actions
-in XFCE 4.10.  The Volume Down and Volume Up buttons on the side appear to
-be indistinguishable from Volume Down (F2) and Volume Up (F3).  The Power
-key on the side produces an ACPI event that is correctly handled in XFCE
-4.10.
+The sensor hub in the Yoga 2 Pro does not behave the same as many other
+sensor hubs.  As a result, the sensors are not reliably initialized in 3.12
+and may be reliably mis-initialized in 3.13.  I have a patched
+hid-sensor-hub.c and hid-sensor-ids.h that appear to fix the problem.  This
+patch should get into distributed code in the near future.
 
-ScrLk and Insert produce the correct characters, which are sent on to
-applications.
 
-Screen Backlight (F9) and Keyboard Backlight (space) appear to be handled in
-firmware.  They work correctly, but produce no keyboard scan codes at all.
 
-Display Apps (F8) produces Cntl_L Alt_L Tab, which does not elicit any
-special behaviour (under XFCE 4.10).  Rotation Lock on the side produces
-Super_L o, which does not elicit any special behaviour (under XFCE 4.10) but
-can be hotkeyed to signal the orientation program if desired.  The command
-to trigger is 'pkill --signal SIGUSR1 --exact orientation'.
+	Orientation Monitor and Screen Rotation
 
-Disable Touchpad (F6) produces scan codes that are not recognized.  This can
-be fixed by 'sudo setkeycodes e03f 191' and then setting XF86TouchPadToggle
-to trigger a script to toggle the state of the touchpad.
+orientation is a stand-alone program that monitors the accelerometer on a
+Yoga 2 Pro and rotates the screen and touchscreen (but not the touchpad).
+It should work on any laptop that has an IIO-enabled 3D accelerometer in the
+screen and uses the HID Hub identifiers for the sensor channels.  The
+--touchscreen option will have to be used for laptops that don't have an
+ELAN Touchscreen - use xinput to find the name of your touchscreen device.
 
-Pause and Break produce the same character.  This can be fixed by 
-'sudo setkeycodes e046 124; xmodmap -e "keycode 132 = Break"'.  Be sure that
-keycode 124 is not used for any other key.
+The program needs the IIO bus drivers and the USB HID sensor hub driver configured
+into the kernel (generally these will be loadable modules).  If there is a
+directory /sys/bus/iio/devices/iio:device0 then you should be OK.  Fedora 20
+has this all set up.
 
-Airplane Mode (F7) produces ACPI Notify 0x2000, which is correctly handled
-by the ideapad_laptop module.  The Novo button on the side produces ACPI
-Notify 0x0008, which is reasonably handled by the ideapad_laptop module.
-However, ideapad_laptop breaks other things and need to be fixed to work on
-Yogas.
+For the program to work best, it needs to manipulate the accelerometer
+controls and read accelerometer data without running as root. One way to do
+this manually is to be in a group and have the device files  also be in that
+group and accessible as necessary, e.g., via  
+  sudo chgrp wheel /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en 
+  sudo chmod g+w /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en 
+  sudo chgrp wheel /sys/bus/iio/devices/iio:device*/buffer/*
+  sudo chmod g+w /sys/bus/iio/devices/iio:device*/buffer/* 
+  sudo chgrp wheel /sys/bus/iio/devices/iio:device*/trigger/current_trigger
+  sudo chmod g+w /sys/bus/iio/devices/iio:device*/trigger/current_trigger
+  sudo chgrp wheel /dev/iio:device*
+  sudo chmod g+rw /dev/iio:device*
+[What is the best way to do this automatically?  Via udev rules?]
+In the absence of something better, the script
+  ./setup 
+makes the sensor usable by processes in the user's first group and then
+starts the program.  (It is benign to run this script each time the
+orientation program is started.)   
 
-Refresh Desktop (F5) appears to be indistinguishable from F5.  
+To run the program directly, just use
+  ./orientation
+Options are
+  --debug=level, -d level 
+	produce more and more outut as the argument is increased, default 0
+  --count=number, -c number
+	runs for only number probes of the accelerometer, default -1
+  --name=sensor_name, -n sensor_name
+	uses sensor_name for the IIO name of the accelerometer, default accel_3d
+  --touchscreen=screen_name, -t screen_name
+	uses screen_name for the name of the touchscreen, default ELAN Touchscreen
+	set to empty string if you don't have a touchscreen or don't want to rotate it
 
-The Windows button on the screen appears to be indistinguishable from the
-Windows key on the keyboard, except that both the down and up events are
-triggered on button release.  It is thus practically useless.  Changing the
-behaviour of this key would permit it to be used to modify touchscreen
-touches.
+The program responds to a SIGUSR1 signal by suspending rotations due to
+orientation changes until another SIGUSR1 signal is received, except that if
+another SIGUSR1 signal is received within a second or two (i.e., the time in
+seconds difference is less than two) the second signal performs a manual
+left rotation and also suspends automatic rotation.  (A subsequent quick
+signal is then interpreted as a regular signal, which turns automatic
+rotation on, so three signals in quick succession is not very useful.)
+
+Signals can be easily sent to the orientation program using 
+  pkill --signal SIGUSR1 --exact orientation
+which can be linked to the rotation lock button <Super>o on the side of the
+Yoga using the appropriate mechanism in your display manager.
+
+WARNING:  This is not production quality code.  It execs xrandr and xinput.
+WARNING:  The distributed iio_utils.h has lots of bugs.
+WARNING:  The device appears to get into stuck modes.  To try to unstick
+ 	  sudo ./unstick X where X is the number of the accelerometer
+
+
+	Generic Industrial IO Buffer Monitor
+
+generic_buffer is a program to read samples from an Industrial IO sensor and
+print them.
+
+To run, just
+	sudo ./generic_buffer -c count -n name
+where count is how many samples to print and name is the IIO name of the sensor.
+
+To check whether the Yoga sensor is working on your system, try
+	sudo ./generic_buffer -c 10 -n gyro_3d
+If you get output like the following (maybe after rotating the Yoga) then
+things should be set up correctly (but it is still possible that the
+accelerometer is stuck somehow).
+
+iio device number being used is 2
+iio trigger number being used is 2
+DEV_DIR_NAME /sys/bus/iio/devices/iio:device2  TRIGGER_NAME gyro_3d-dev2
+SCAN_SIZE 12
+N000: in_anglvel_x  -103 -103.00  in_anglvel_y     2    2.00  in_anglvel_z   -16  -16.00  
+N001: in_anglvel_x  -122 -122.00  in_anglvel_y     2    2.00  in_anglvel_z    27   27.00  
+N002: in_anglvel_x  -140 -140.00  in_anglvel_y    14   14.00  in_anglvel_z    -4   -4.00  
+N003: in_anglvel_x  -134 -134.00  in_anglvel_y    -4   -4.00  in_anglvel_z     9    9.00  
+N004: in_anglvel_x   -42  -42.00  in_anglvel_y     2    2.00  in_anglvel_z    -4   -4.00  
+N005: in_anglvel_x   -24  -24.00  in_anglvel_y     2    2.00  in_anglvel_z    -4   -4.00  
+N006: in_anglvel_x   -12  -12.00  in_anglvel_y     8    8.00  in_anglvel_z     3    3.00  
+N007: in_anglvel_x   -18  -18.00  in_anglvel_y    14   14.00  in_anglvel_z     3    3.00  
+N008: in_anglvel_x     7    7.00  in_anglvel_y    -4   -4.00  in_anglvel_z   -10  -10.00  
+N009: in_anglvel_x   -36  -36.00  in_anglvel_y     8    8.00  in_anglvel_z     3    3.00  
+
+If you get only the first four lines of the above, then the sensor or sensor
+hub is stuck somehow.  You could try again with accel_3d to see if the
+accelerometer is working.  (This wasn't recommended as the first try, as it
+is possible to get a sensor stuck.)  A sensor can be stuck because its
+channels cannot be enabled, because its buffer cannot be set up, because its
+trigger cannot be set up, and probably for other reasons.
+
+If you get no output, an error message, or "Failed to find the gyro_3d" then 
+something is wrong with your setup.  It could be that Industrial IO is not
+in your distribution.  It could be that you don't have the right sort of
+chip.  It could be that something went wrong when the devices were
+initialized.  You will have to dig around to see what is wrong.
+
+
+
+	Determing the Hinge Angle
+
+hinge is the beginnings of a system to determine the hinge angle from the
+two accelerometers.  It is not functional as of yet.
+
+
+
+
+
+	Information about the sensor chip in the Lenovo Yoga 2 Pro
+
+The Invensense chip presents eight sensors.  Four of these are supported in
+kernel 3.12: an ambient light sensor, an accelerometer, a gyroscope, and a
+magnetometer.  The last three sensors are each 3D, producing a 9-axis
+position sensor.  There is support for a fifth sensor in kernel 3.13, an
+inclinometer, which is probably derived from the accelerometer.  Kernel 3.13
+also has some code to support sensitivity, and appears to have some bug
+fixes.   There is also a device orientation sensor and a custom sensor that
+includes an accelerometer on the base.
+
+Each supported sensor becomes an iio device, possibly with multiple
+channels.  The device number (X, below) changes each time.  There is a
+function in iio_utils.h for finding out which device number corresponds to
+which sensor, cycling through sysfs files to match the name.
+
+Sensor Name	Channels
+  als		intensity_both
+  accel_3d	accel_x accel_y accel_z
+  magn_3d	magn_x magn_y magn_z
+  gyro_3d	anglvel_x anglvel_y anglvel_x
+
+Getting data from an iio device involves enabling its channels, enabling the
+data-ready device trigger, and turning on the buffer.  (As far as I can
+tell, there is only one trigger currently available.)  Only then can data be
+read from the device at /dev/iio:deviceX.  The device trigger and the buffer
+should be turned off after the program is finished reading data.
+
+To enable the channels of a sensor
+  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/scan_elements/in_*_en
+It does not appear to be possible to disable a channel
+
+To enable the buffer for a sensor
+  echo <N> | sudo tee /sys/bus/iio/devices/iio:deviceX/buffer/length
+  echo 1 | sudo tee /sys/bus/iio/devices/iio:deviceX/buffer/enable
+To disable the buffer for a sensor
+  echo 0 | sudo tee /sys/bus/iio/devices/iio:deviceX/buffer/enable
+
+To set the data-ready trigger
+  cat /sys/bus/iio/devices/triggerX/name | sudo tee /sys/bus/iio/devices/iio:deviceX/trigger/current_trigger
+To unset the trigger
+  echo "NULL" | sudo tee /sys/bus/iio/devices/iio:deviceX/trigger/current_trigger
+
+
+The sensors appear to be in one of several states:
+1/ stuck - no data is produced and attempts to change the device status produce 
+		Device or resource busy
+2/ active with hysteresis - data is produced only after a significant change
+3/ active with change - data is produced after any change
+4/ free-running - data is produced very rapidly
+I do not know how they get in these states, nor do I know how to change the state.
+
+To unstick a device (maybe?)
+	echo 0 | sudo tee /sys/bus/iio/devices/iio:deviceX/buffer/enable 
+	echo NULL | sudo tee /sys/bus/iio/devices/iio:deviceX/trigger/current_trigger 
+
+
+In 3.12, the light sensor is usually in a mode where it reports only on
+changes (but the changes are quantized in steps of 39).  The accelerometer,
+magnetometer, and gyroscope are free-running (i.e., the same values can be
+output multiple times in a row), although they are sensitive so some value
+usually changes each time.  In 3.13 the light sensor is the same, but the
+others are in some stuck state.
+
+
+The eight sensors can be seen in a directory named something like
+/sys/devices/pci0000:00/0000:00:14.0/usb2/2-6/2-6:1.0/0003:2047:0855.0001/ 
+ HID-SENSOR-200041.0	Ambient Light		als
+ HID-SENSOR-200073.0	Accelerometer 3D	accel_3d
+ HID-SENSOR-200076.0	Gyrometer 3D  		gyro_3d
+ HID-SENSOR-200083.0	Compass 3D		magn_3d
+ HID-SENSOR-200086.0	Inclinometer 3D
+ HID-SENSOR-20008a.0	Device Orientation, outputting a quaternion
+ HID-SENSOR-2000e1.0	Custom, including Accelerometer 3D on the base
+ HID-SENSOR-2000e2.0	Generic ??
+
+Sysfs setup (in /sys/bus/iio/devices):
+
+iio:deviceX
+ dev			string		x:y
+ name			string		accel_3d	
+ uevent			W string	MAJOR=x\nMINOR=y\nDEVNAME=iio:deviceX\nDEVTYPE=iio_device
+ in_*_hysteresis	W float		0.000000
+ in_*_offset		W int		-3
+ in_*sampling_frequency	W float		0.000000
+ in_*_scale		W int		0
+ buffer
+  enable		W boolean	0|1
+  length		W int		128
+ scan_elements		
+  in_*_*_en		W boolean	0|-1
+  in_*_*_index		int		0|1|2
+  in_*_*_type		string		le:s16/32>>0
+ trigger
+  current_trigger	W string	accel_3d-devX|...
+ power		For run-time power management???
+triggerX	The trigger name for iio:deviceX
+ name			string		accel_3d-devX|...
+ uevent			W string	
+ power		For run-time power management???
+
+
+
+	Information about rotating the screen and touchscreen
+
+Rotating the screen:
+    xrandr -o normal | inverted | left | right
+
+Rotating the touchscreen:
+  normal
+    xinput set-prop 'ELAN Touchscreen' 'Coordinate Transformation Matrix' 1 0 0 0 1 0 0 0 1
+  right
+    xinput set-prop 'ELAN Touchscreen' 'Coordinate Transformation Matrix' 0 1 0 -1 0 1 0 0 1
+  left
+    xinput set-prop 'ELAN Touchscreen' 'Coordinate Transformation Matrix' 0 -1 1 1 0 0 0 0 1
+  inverted
+    xinput set-prop 'ELAN Touchscreen' 'Coordinate Transformation Matrix' -1 0 1 0 -1 1 0 0 1
+
+Enabling and disabling the touchpad
+    xinput enable | disable 'SynPS/2 Synaptics TouchPad'
+
+Another way of modifying the touchscreen (maybe):
+    xinput set-prop "ELAN Touchscreen" "Evdev Axes Swap" "0"
+    xinput set-prop "ELAN Touchscreen" "Evdev Axis Inversion" 1 1

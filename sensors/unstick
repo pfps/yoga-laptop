@@ -4,4 +4,4 @@ set X = $1
 
 echo 0 > /sys/bus/iio/devices/iio:device${X}/buffer/enable 
 echo NULL > /sys/bus/iio/devices/iio:device${X}/trigger/current_trigger 
-
+source ./status ${X}

@@ -404,15 +404,22 @@ void sigusr_callback_handler(int signum) {
   previous_orientation = screen_orientation;
   if ( now <= last_sigusr_time + 1 ) {
     orientation_lock = true;
-    printf("Quick second signal suspends rotation at %ld diff %ld\n",
+    if ( debug_level > 0 ) {
+      printf("Quick second signal rotates and then suspends rotation at %ld diff %ld\n",
 	     (long)now, (long)(now-last_sigusr_time));
+    } else if ( debug_level > -1 ) {
+      printf("Quick second signal rotate and then suspends rotation\n");
+    }
     last_sigusr_time = 0;
     rotate_to(rotate_left_orientation(screen_orientation));
   } else {
     orientation_lock = ! orientation_lock;
-    if ( debug_level > -1 )
+    if ( debug_level > 0 ) {
       printf("Signal %s rotation at %ld diff %ld\n",
 	     orientation_lock ? "suspends" : "resumes", (long)now, (long)(now-last_sigusr_time));
+    } else if ( debug_level > -1 ) {
+	printf("Signal %s rotation\n", orientation_lock ? "suspends" : "resumes");
+    }
     last_sigusr_time = now;
   }
 }

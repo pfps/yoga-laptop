@@ -336,9 +336,12 @@ int main(int argc, char **argv)
         }
 
         /* Setup ring buffer parameters */
+	/* pfps - don't do this, for now, as it may be causing problems
         ret = write_sysfs_int("length", buf_dir_name, buf_len);
         if (ret < 0)
                 goto error_free_buf_dir_name;
+	*/
+
 
         /* Enable the buffer */
         ret = write_sysfs_int("enable", buf_dir_name, 1);

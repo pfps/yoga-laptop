@@ -31,3 +31,4 @@ cat /sys/bus/iio/devices/iio:device${X}/buffer/length
 
 echo -n "Current trigger: "
 cat /sys/bus/iio/devices/iio:device${X}/trigger/current_trigger
+echo ""
