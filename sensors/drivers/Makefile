@@ -10,4 +10,4 @@ hid-example:	hid-example.c
 	cc hid-example.c -o hid-example
 
 clean:
-	rm -f *~ *.o modules.order Module.symvers
+	rm -rf *~ *.o *.mod.c .hid-sensor* .tmp_versions modules.order Module.symvers

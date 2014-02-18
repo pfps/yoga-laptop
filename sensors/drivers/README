@@ -2,6 +2,45 @@ WARNING:  This is all lightly tested changes to kernel drivers.
           Use with extreme caution!
 
 
+		Making it work
+
+1/ Make sure that you have the industrialio kernel modules available 
+
+2/ Get the kernel-devel package for your kernel
+	sudo install kernel-devel
+
+3/ Compile the modules - there will be warnings
+	make
+
+4/ Blacklist the hid-sensor modules so that the stock ones are not loaded at startup
+	/etc/modprobe.d/blacklist.conf should look like
+blacklist ideapad_laptop
+blacklist hid_sensor_hub
+blacklist hid_sensor_trigger
+blacklist hid_sensor_accel_3d
+blacklist hid_sensor_gyro_3d
+blacklist hid_sensor_magn_3d
+blacklist hid_sensor_als
+
+5/ Reboot.  Don't use secure kernel mode, as you will be adding in unsigned modules.
+	In Fedora secure kernel mode is set if you use secure UEFI booting,
+	so turn that off.
+
+6/Insert the modules, and their dependencies
+	sudo modprobe industrialio
+	sudo insmod ./hid-sensor-hub.ko
+	sudo insmod ./hid-sensor-trigger.ko
+	sudo insmod ./hid_sensor_accel_3d.ko
+
+7/ Insert drivers for the other sensors, if desired
+	sudo insmod ./hid_sensor_gyro_3d.ko
+	sudo insmod ./hid_sensor_magn_3d.ko
+	sudo insmod ./hid_sensor_als.ko
+	sudo insmod ./hid_sensor_incl_3d.ko
+	sudo insmod ./hid_sensor_custom.ko
+
+
+
 		Drivers for Sensors
 
 Here are drivers for the Yoga sensors, including the patch to make the hub work better.
@@ -23,32 +62,33 @@ include files have been copied into this directory.  This should all be
 fixed up.  Some shortcuts had to be made because the common infrastructure
 doesn't support these kinds of drivers.
 
-NB:  Needs /usr/src/kernels/.../include/linux/hid-sensor-ids.h to be updated to the 3.14 version.
 
-Drivers:
+Files for drivers:
 
+hid-sensor-ids.h	From 3.14
 hid-ids.h		From 3.14, plus patch to quirk the Yoga sensor
-drivers/hid-sensor-hub.c	From 3.14, plus patch to quirk the Yoga sensor
+hid-sensor-hub.c	From 3.14, plus patch to quirk the Yoga sensor
+ 				Also patched to use local hid-sensor-ids.h
 
-drivers/hid-sensor-trigger.c	From 3.14 (had a temporary patch)
 hid-sensor-trigger.h	From 3.14
+hid-sensor-trigger.c	From 3.14 (had a temporary patch)
 
-drivers/hid-sensor-als.c	From 3.14
-drivers/hid-sensor-accel-3d.c	From 3.14
-drivers/hid-sensor-gryo-3d.c	From 3.14
-drivers/hid-sensor-magn-3d.c	From 3.14
-drivers/hid-sensor-incl-3d.c	From 3.14 (new in 3.14)
+hid-sensor-als.c	From 3.14
+hid-sensor-accel-3d.c	From 3.14
+hid-sensor-gryo-3d.c	From 3.14
+hid-sensor-magn-3d.c	From 3.14
+hid-sensor-incl-3d.c	From 3.14 (new in 3.14)
 
-drivers/hid-sensor-orient.c	
+hid-sensor-orient.c	
 	driver for orientation sensor that reports back a quaternion
 	the data is probably wrong here
 
-drivers/hid-sensor-custom.c
+hid-sensor-custom.c
 	driver for custom sensor
 	the fields are stolen from other sensors
 
-drivers/hid-sensor-generic.c
-	driver for generic sensor
+hid-sensor-generic.c
+	driver for generic sensor (only a start)
 	the common support can't handle some of the fields of this driver 
 
 

@@ -22,7 +22,8 @@
 #include <linux/slab.h>
 #include <linux/mfd/core.h>
 #include <linux/list.h>
-#include <linux/hid-sensor-ids.h>
+/* pfps #include <linux/hid-sensor-ids.h> */
+#include "hid-sensor-ids.h"
 #include <linux/hid-sensor-hub.h>
 #include "hid-ids.h"
 
