@@ -30,14 +30,18 @@ blacklist hid_sensor_als
 	sudo modprobe industrialio
 	sudo insmod ./hid-sensor-hub.ko
 	sudo insmod ./hid-sensor-trigger.ko
-	sudo insmod ./hid_sensor_accel_3d.ko
+	sudo modprobe industrialio_triggered_buffer
+	sudo modprobe hid_sensor_iio_common
+	sudo insmod ./hid-sensor-accel-3d.ko
 
 7/ Insert drivers for the other sensors, if desired
-	sudo insmod ./hid_sensor_gyro_3d.ko
-	sudo insmod ./hid_sensor_magn_3d.ko
-	sudo insmod ./hid_sensor_als.ko
-	sudo insmod ./hid_sensor_incl_3d.ko
-	sudo insmod ./hid_sensor_custom.ko
+	sudo insmod ./hid-sensor-gyro-3d.ko
+	sudo insmod ./hid-sensor-magn-3d.ko
+	sudo insmod ./hid-sensor-als.ko
+	sudo insmod ./hid-sensor-incl-3d.ko
+	sudo insmod ./hid-sensor-custom.ko
+
+hid_sensor_parse_common_attributes
 
 
 
