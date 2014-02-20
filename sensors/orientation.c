@@ -434,6 +434,7 @@ Options:\n\
   --count=iterations	If >0 run for only this number of iterations [-1]\n\
   --name=accel_name	Industrial IO accelerometer device name [accel_3d]\n\
   --touchscreen=ts_name	TouchScreen name [ELAN Touchscreen]\n\
+  --usleep=time		Polling sleep time in microseconds [1000000]\n\
   --debug=level		Print out debugging information (-1 through 4) [0]\n\
 \n\
 orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
@@ -464,11 +465,12 @@ int main(int argc, char **argv)
     {"count", required_argument, 0, 'c'},
     {"name",  required_argument, 0, 'n'},
     {"touchscreen",required_argument, 0, 't'},
+    {"usleep", required_argument, 0, 'u'},
     {"debug", required_argument, 0, 'd'},
     {0, 0, 0, 0} };
   int option_index = 0;
 
-  while ( (c = getopt_long(argc, argv, "c:n:d:t:", long_options,&option_index))
+  while ( (c = getopt_long(argc, argv, "c:n:d:t:u:", long_options,&option_index))
 	  != -1 ) {
     switch (c) {
     case 0:
@@ -484,6 +486,9 @@ int main(int argc, char **argv)
       break;
     case 'd':
       debug_level = strtol(optarg, &dummy, 10);
+      break;
+    case 'u':
+      sleeping = strtol(optarg, &dummy, 10);
       break;
     case '?':
       printf("Invalid flag\n");

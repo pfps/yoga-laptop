@@ -9,4 +9,5 @@ sudo chmod g+w /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/i
 sudo chgrp ${group} /dev/iio:device*
 sudo chmod g+rw /dev/iio:device*
 
-./orientation
+./orientation --usleep=500000
+

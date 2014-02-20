@@ -41,8 +41,6 @@ blacklist hid_sensor_als
 	sudo insmod ./hid-sensor-incl-3d.ko
 	sudo insmod ./hid-sensor-custom.ko
 
-hid_sensor_parse_common_attributes
-
 
 
 		Drivers for Sensors
