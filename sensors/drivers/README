@@ -1,5 +1,7 @@
 WARNING:  This is all lightly tested changes to kernel drivers.  
-          Use with extreme caution!
+          Use with extreme caution!  If anyone is interested in adding the
+	  necessary extra stuff to integrate these drivers into the kernel
+	  module system, feel free to do so.
 
 
 		Making it work
@@ -45,13 +47,15 @@ blacklist hid_sensor_als
 
 		Drivers for Sensors
 
-Here are drivers for the Yoga sensors, including the patch to make the hub work better.
+Here are drivers for the Yoga sensors, including the patch to make the hub
+work better. 
 
 To install the drivers themselves, just 
    sudo modprobe -r hid-sensor<driver>
    sudo insmod ./hid-sensor<driver>.ko
 
-To get the sensor hub to behave better is more involved.
+To get the sensor hub to behave better is more involved, and is described
+above.
 
 
 There are two kinds of drivers

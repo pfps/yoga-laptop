@@ -15,5 +15,8 @@ orientation: orientation.c iio_utils.h
 hinge: hinge.c iio_utils.h
 	cc hinge.c -o hinge
 
-dist:
-	tar -cf orientation.tar Makefile README TODO ${SCRIPTS} ${SOURCES} ${EXECS}
+install:
+	echo "Because the accelerometer is not reliably set up in standard kernels"
+	echo "it is better to run the orientation program directly, at least for"
+	echo "the first few times.  See README for more information."
+
