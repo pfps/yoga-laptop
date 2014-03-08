@@ -8,11 +8,18 @@ default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 
 clean:
-	rm -f *.o *.mod.c modules.order Module.symvers
+	rm -rf *.o *.mod.c .tmp_versions .ideapad* modules.order Module.symvers
 
 veryclean: clean
 	rm -f *.ko
 
 
-install:
-	install  --owner=root --group=root --mode=644 ideapad_laptop.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/platform/x86
+install-driver:
+	install --owner=root --group=root --mode=644 ideapad-laptop.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/platform/x86
+
+install-keys:
+	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb /etc/udev/hwdb.d
+	udevadm hwdb --update
+	@echo NOTE: You also need to cp -pr xkeycode "~/.Xmodmap"
+
+install: install-driver install-keys

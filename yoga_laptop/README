@@ -1,12 +1,27 @@
-		Lenovo Yoga Kernel Module
+	Lenovo Yoga 2 Pro Special Key Handling and Kernel Module
 
-This is a modified ideapad kernel module that recognizes Yoga 2 Pros and
-doesn't set up any physical RF kill switches.  You probably have this module
-blacklisted. 
 
-Right now the only thing that
-this module is known to be useful for on Yoga 2 Pros is to handle two keys
-(FnF7 and Novo) that only produce ACPI notifications.
+0/ Problematic Yoga Special Keys
+
+Fn F5	Acts the same as F5
+Fn F6	Produces unrecognised scan codes, fix below
+Fn F7	Produces ACPI Notify VPC2004 80 0x2000, handled in ideapad-laptop
+Fn F9	Works entirely in firmware
+Break	Same keycode as Pause, partial fix below
+Fn sp	Works entirely in firmware
+Fn F7	Produces ACPI Notify VPC2004 80 0x0008, handled in ideapad-laptop
+Windows	The on-screen button is indistinguishable from the keyboard key
+
+
+1/ ideapad-laptop kernel module
+
+ideapad-laptop.c is a modified ideapad kernel module that recognizes Yoga 2
+Pros and doesn't set up any physical RF kill switches.  You probably have
+this module blacklisted, but this fixes its problems on the Yoga 2 Pro.
+
+Right now the only thing that this module is known to be useful for on Yoga
+2 Pros is to handle two keys (FnF7 and Novo) that only produce ACPI
+notifications.
 
 The module depends on the sparse keymap kernel module.  To ensure that this
 is available
@@ -14,29 +29,54 @@ is available
 Then to load the module itself
   sudo insmod ./ideapad_laptop.ko 
 
-Alternatively, `sudo make install` after `make`, puts the driver into the
-kernel modules.  Once this is done, remove the blacklist for the module.
+Alternatively, `sudo make install-driver` after `make`, puts the driver into
+the kernel modules.  Once this is done, remove the blacklist for the module.
 You cannot be running in secure mode, as the driver will not be signed.
 
 
+2/ Fn F6 and Break
+
+These two keys are badly handled.   To make them produce reasonable key
+codes, edit /etc/udev/hwdb.d/90-yoga-keyboard.hwdb to be
+keyboard:dmi:bvn*:bvr*:bd*:svnLENOVO*:pn*20266*:pvr*
+ KEYBOARD_KEY_bf=f21		# should be touchpad_toggle, but f21 is used for this
+ KEYBOARD_KEY_c6=f24		# should be break, but need something < 255
+and then `sudo udevadm hwdb --update`.
+
+Note:  Neither of these are ideal, but X can't handle key codes over 256.
+using F21 for touchpad_toggle is a general convention, but F24 for break is
+not. 
+
+To make X turn F24 into BREAK, requires xmodmap so edit ~/.Xmodmap to be
+keycode 202 = Break
+
+Note:  Some X distributions don't look at ~/.Xmodmap.   The XKB extension
+could be used, but that seems like quite a bit of overkill.   If anyone gets
+that route to work, please tell how you did it.
 
 
-Problematic Yoga Special Keys
+The above can easily be done via `sudo make install-keys'
 
-Fn F5	Acts the same as F5
-Fn F6	Produces unrecognised scan codes, fix to produce XF86TouchPadToggle
-		sudo setkeycodes e03f 191
-Fn F7	Produces ACPI Notify 0x2000, fixed in this module
-Fn F9	Works entirely in firmware
-Break	Default kernel input code makes it Work the same as Pause
+
+localectl set-x11-keymap us pc105+inet
+
+
+
 	To produce Break instead
 		sudo setkeycodes e046 124; xmodmap -e "keycode 132 = Break"
-Fn sp	Work entirely in firmware
-Novo	Produces ACPI Notify 0x0008, fixed in this module
-Windows	The on-screen button is indistinguishable from the keyboard key
 
 
 
+
+
+
+
+
+
+
+
+
+3/ Extra information
 
 
 Results of probing ACPI notifies

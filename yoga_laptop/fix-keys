@@ -1,5 +1,6 @@
 #!/bin/bash
 # Fix two non-working keys on the Yoga keyboard
+# Setting up udev rules is a better way, see the Makefile
 
 # Fn F6 should produce XF86KeypadToggle
 sudo setkeycodes e03f 191
