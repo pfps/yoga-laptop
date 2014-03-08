@@ -358,7 +358,7 @@ void rotate_to(orient) {
   int status, pid;
   char *orientation = symbolic_orientation(orient);
 
-  printf ("ROTATE to orientation %s\n",orientation);
+  printf ("ROTATE to %s\n",orientation);
   screen_orientation = orient;
   if ( 0 == (pid = fork()) ) { /* rotate the screen */
     execl(xrandr,xrandr,"--orientation",orientation,(char *)NULL);
@@ -408,7 +408,7 @@ void sigusr_callback_handler(int signum) {
       printf("Quick second signal rotates and then suspends rotation at %ld diff %ld\n",
 	     (long)now, (long)(now-last_sigusr_time));
     } else if ( debug_level > -1 ) {
-      printf("Quick second signal rotate and then suspends rotation\n");
+      printf("Quick second signal rotates and then suspends rotation\n");
     }
     last_sigusr_time = 0;
     rotate_to(rotate_left_orientation(screen_orientation));
@@ -506,7 +506,7 @@ int main(int argc, char **argv)
   /* Find the device requested */
   dev_num = find_type_by_name(device_name, "iio:device");
   if (dev_num < 0) {
-    printf("Failed to find the %s\n", device_name);
+    printf("Failed to find the %s sensor\n", device_name);
     ret = -ENODEV;
     goto error_ret;
   }

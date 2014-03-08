@@ -16,6 +16,13 @@ hid-example:	hid-example.c
 clean:
 	rm -rf *~ *.o *.mod.c .hid-sensor* .tmp_versions modules.order Module.symvers
 
-dist:	clean
-	rm *.ko
+veryclean:	clean
+	rm -f *.ko
 
+install:
+	install --owner=root --group=root --mode=644 hid-sensor-hub.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/hid
+	install --owner=root --group=root --mode=644 hid-sensor-trigger.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/common/hid-sensors
+	install --owner=root --group=root --mode=644 hid-sensor-accel-3d.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/accel
+	install --owner=root --group=root --mode=644 hid-sensor-als.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/light
+	install --owner=root --group=root --mode=644 hid-sensor-gyro-3d.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/gyro
+	install --owner=root --group=root --mode=644 hid-sensor-magn-3d.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/magnetometer 

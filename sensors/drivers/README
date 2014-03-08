@@ -3,10 +3,15 @@ WARNING:  This is all lightly tested changes to kernel drivers.
 	  necessary extra stuff to integrate these drivers into the kernel
 	  module system, feel free to do so.
 
+WARNING:  Installing via `sudo make install` will install new kernel modules!
+
 
 		Making it work
 
-1/ Make sure that you have the industrialio kernel modules available 
+0/ Turn off secure kernel mode, if necessary.  In Fedora secure kernel mode
+   is set if you use secure UEFI booting, so turn that off.
+
+1/ Make sure that you have the industrialio and sensor hub kernel modules available 
 
 2/ Get the kernel-devel package for your kernel
 	sudo install kernel-devel
@@ -19,7 +24,13 @@ WARNING:  This is all lightly tested changes to kernel drivers.
 3/ Compile the modules - there will be warnings
 	make
 
-4/ Blacklist the hid-sensor modules so that the stock ones are not loaded at startup
+4/ Install the kernel modules
+	sudo make install
+
+
+If you don't want to install new kernel modules you can instead:
+
+Ma/ Blacklist the hid-sensor modules so that the stock ones are not loaded at startup
 	/etc/modprobe.d/blacklist.conf should look like
 blacklist ideapad_laptop
 blacklist hid_sensor_hub
@@ -29,11 +40,9 @@ blacklist hid_sensor_gyro_3d
 blacklist hid_sensor_magn_3d
 blacklist hid_sensor_als
 
-5/ Reboot.  Don't use secure kernel mode, as you will be adding in unsigned modules.
-	In Fedora secure kernel mode is set if you use secure UEFI booting,
-	so turn that off.
+Mb/ Reboot.  
 
-6/Insert the modules, and their dependencies
+Mc/Insert the modules, and their dependencies
 	sudo modprobe industrialio
 	sudo insmod ./hid-sensor-hub.ko
 	sudo insmod ./hid-sensor-trigger.ko
@@ -41,12 +50,13 @@ blacklist hid_sensor_als
 	sudo modprobe hid_sensor_iio_common
 	sudo insmod ./hid-sensor-accel-3d.ko
 
-7/ Insert drivers for the other sensors, if desired
+Md/ Insert drivers for the other sensors, if desired
 	sudo insmod ./hid-sensor-gyro-3d.ko
 	sudo insmod ./hid-sensor-magn-3d.ko
 	sudo insmod ./hid-sensor-als.ko
 	sudo insmod ./hid-sensor-incl-3d.ko
 	sudo insmod ./hid-sensor-custom.ko
+
 
 
 
