@@ -1,9 +1,9 @@
 	Information about the Yoga 2 Pro (and other Yogas)
 
 
-Sensors
+1/ Sensors
 
-The Yoga 2 Pro (and some other Yogas) have an HID sensor hub connected to an
+Yoga 2 Pros (and some other Yogas) have an HID sensor hub connected to an
 ambient light sensor, a 3D accelerometer on the screen, a 3D gyrometer on
 the screen, a 3D compass on the screen, a 3D inclinometer on the screen, a
 device orientation sensor, and a custom sensor that includes a 3D
@@ -25,9 +25,9 @@ the screen's orientation, and rotates it and the touchscreen appropriately.
 The program is available at https://github.com/pfps/yoga-laptop.git
 
 
-Function Keys and Non-keyboard Buttons
+2/ Function Keys and Non-keyboard Buttons
 
-The Yoga 2 Pro and many other Yogas have 17 labeled Fn keys on the keypad
+Yoga 2 Pros and many other Yogas have 17 labeled Fn keys on the keypad
 and several buttons/keys outside the keyboard.  The 12 Fn keys on the top
 row have Fn behaviour by default, whereas the other five have non-Fn
 behaviour by default.
@@ -53,21 +53,14 @@ Super_L o, which does not elicit any special behaviour (under XFCE 4.10) but
 can be hotkeyed to signal the orientation program if desired.  The command
 to trigger is 'pkill --signal SIGUSR1 --exact orientation'.
 
-Disable Touchpad (F6) produces scan codes that are not recognized.  This can
-be fixed by 'sudo setkeycodes e03f 191' and then setting XF86TouchPadToggle
-to trigger a script to toggle the state of the touchpad.
-
-Pause and Break produce the same character.  This can be fixed by 
-'sudo setkeycodes e046 124; xmodmap -e "keycode 132 = Break"'.  Be sure that
-keycode 124 is not used for any other key.
-
 Airplane Mode (F7) produces ACPI Notify 0x2000, which is correctly handled
 by the ideapad_laptop module.  The Novo button on the side produces ACPI
 Notify 0x0008, which is reasonably handled by the ideapad_laptop module.
 ACPI Notify 0x0040 is done during lid close when AC power is connected (and
 sometimes when it is not).  The ideapad_laptop module handles this
-reasonably.  However, ideapad_laptop breaks WiFi and needs to be fixed to
-work on Yogas.
+reasonably.  However, ideapad_laptop assumes that the laptop has an RF kill
+switch and breaks WiFi on Yogas.  I have contributed a patch that recognizes
+the Yoga 2 Pro and works correctly for them.
 
 Refresh Desktop (F5) appears to be indistinguishable from F5.  
 
@@ -77,3 +70,18 @@ triggered on button release.  It is thus practically useless.  Changing the
 behaviour of this key would permit it to be used to modify touchscreen
 touches.  However, this behaviour appears to be done by the embedded
 controller, and change may not be possible
+
+Disable Touchpad (F6) produces scan codes that are not recognized.  This can
+be fixed by 'sudo setkeycodes e03f 191' and then setting XF86TouchPadToggle
+to trigger a script to toggle the state of the touchpad.  Pause and Break
+produce the same character.  This can be fixed by 'sudo setkeycodes e046
+124; xmodmap -e "keycode 132 = Break"'.  Be sure that keycode 124 is not
+used for any other key.  The easiest way to set up these two keys is to
+utilize udev by creating etc/udev/hwdb.d/90-yoga-keyboard.hwdb, containing
+
+keyboard:dmi:bvn*:bvr*:bd*:svnLENOVO*:pn*20266*:pvr*
+ KEYBOARD_KEY_bf=f21		# should be touchpad_toggle, but f21 is used for this
+ KEYBOARD_KEY_c6=f24		# should be break, but need something < 255
+
+Then 
+  sudo udevadm hwdb --update

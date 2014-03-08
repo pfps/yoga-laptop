@@ -1,35 +1,37 @@
 		Lenovo Yoga Kernel Module
 
-This is the start of a Yoga-specific kernel module.  The ideapad_laptop
-kernel module doesn't work because the Yoga EC information is different
-from the standard Ideapad EC information.  As well, the Yoga does not have
-any physical RF kill switches.
+This is a modified ideapad kernel module that recognizes Yoga 2 Pros and
+doesn't set up any physical RF kill switches.  You probably have this module
+blacklisted. 
 
-There is probably a lot more stuff that should be removed from this module.
-
-
+Right now the only thing that
+this module is known to be useful for on Yoga 2 Pros is to handle two keys
+(FnF7 and Novo) that only produce ACPI notifications.
 
 The module depends on the sparse keymap kernel module.  To ensure that this
 is available
   sudo modprobe sparse_keymap
 Then to load the module itself
-  sudo insmod ./yoga_laptop.ko 
+  sudo insmod ./ideapad_laptop.ko 
+
+Alternatively, `sudo make install` after `make`, puts the driver into the
+kernel modules.  Once this is done, remove the blacklist for the module.
+You cannot be running in secure mode, as the driver will not be signed.
 
 
-Right now the only thing that this module is known to be useful for is to
-handle two keys (FnF7 and Novo) that only produce ACPI notifications.
 
 
 Problematic Yoga Special Keys
 
-Fn F5	Produces the same scan codes as F5
+Fn F5	Acts the same as F5
 Fn F6	Produces unrecognised scan codes, fix to produce XF86TouchPadToggle
 		sudo setkeycodes e03f 191
 Fn F7	Produces ACPI Notify 0x2000, fixed in this module
-Fn F9	Appears to work entirely in firmware
-Break	Works the same as Pause, fix to produce Break
+Fn F9	Works entirely in firmware
+Break	Default kernel input code makes it Work the same as Pause
+	To produce Break instead
 		sudo setkeycodes e046 124; xmodmap -e "keycode 132 = Break"
-Fn sp	Appears to work entirely in firmware
+Fn sp	Work entirely in firmware
 Novo	Produces ACPI Notify 0x0008, fixed in this module
 Windows	The on-screen button is indistinguishable from the keyboard key
 
@@ -41,9 +43,9 @@ Results of probing ACPI notifies
 
 I wrote up a kernel module that attached to all the possible ACPI devices
 and reported ACPI notifies.  The only ones I found were for VPC2004, which
-is, I believe, the Embedded Controller.  The ideapad laptop module is also
-for VPC2004 and identifies two bytes (vpc1 and vpc2) in the EC memory as
-carrying information for that notify so I also printed these bits 
+is the Embedded Controller.  The ideapad laptop module is also for VPC2004
+and identifies two bytes (vpc1 and vpc2) in the EC memory as carrying
+information for that notify so I also printed these bits
 
 Device  #  (vp2<<8 | vpc1)
 
@@ -60,6 +62,141 @@ VPC2004 80 2000	identified as for the AirplaneMode key
 
 
 
-Feb 12 14:40:14 idefix kernel: [181910.785726] test: 
+The patch has been sent in to 
+  ike.pan@canonical.com
+  matthew.garrett@nebula.com
+  platform-driver-x86@vger.kernel.org
+  linux-kernel@vger.kernel.org
 
-Yoga ACPI notify event: 
+With the following message:
+
+The Lenovo Ideapad Yoga laptops have a VPC2004 ACPI device, so the
+ideapad-laptop module loads for them.  The module enables the Airplane Mode
+and Novo keys of the laptop.  Most of the other features of this module 
+are harmless for these laptops.  However, the laptops do not have hardware
+RF kill switches and when the module loads it turns off the WiFi.
+
+This patch adds a flag (rfkill_present) to the ideapad_private data
+indicating whether the laptop has an RF kill switch.   On initialization, 
+there is a check whether the laptop is a Yoga 2 Pro by matching against the 
+DMI product version of the system information.  If there is a match the flag
+is set to false, otherwise it is set to true.  All manipulations of the
+rfkill structures are conditioned on this flag being true.
+
+This is a minimal change to make the ideapad-laptop module work correctly
+for Yoga 2 Pro Ideapads.  The initialization check should be generalized for
+other Ideapads that do not have RF kill switches, particularly other Yogas,
+but I do not have precise information on their DMI version information.
+
+---
+
+--- a/drivers/platform/x86/ideapad-laptop.c
++++ b/drivers/platform/x86/ideapad-laptop.c
+@@ -27,6 +27,7 @@
+ #include <linux/init.h>
+ #include <linux/types.h>
+ #include <linux/acpi.h>
++#include <linux/dmi.h>
+ #include <linux/rfkill.h>
+ #include <linux/platform_device.h>
+ #include <linux/input.h>
+@@ -84,6 +85,7 @@ struct ideapad_private {
+ 	struct input_dev *inputdev;
+ 	struct backlight_device *blightdev;
+ 	struct dentry *debug;
++        bool rfkill_present;
+ 	unsigned long cfg;
+ };
+ 
+@@ -474,13 +476,15 @@ static void ideapad_sync_rfk_state(struct ideapad_private *priv)
+ 	unsigned long hw_blocked;
+ 	int i;
+ 
+-	if (read_ec_data(priv->adev->handle, VPCCMD_R_RF, &hw_blocked))
+-		return;
+-	hw_blocked = !hw_blocked;
++	if (priv->rfkill_present) {
++		if (read_ec_data(priv->adev->handle, VPCCMD_R_RF, &hw_blocked))
++			return;
++		hw_blocked = !hw_blocked;
+ 
+-	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+-		if (priv->rfk[i])
+-			rfkill_set_hw_state(priv->rfk[i], hw_blocked);
++		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
++			if (priv->rfk[i])
++				rfkill_set_hw_state(priv->rfk[i], hw_blocked);
++	}
+ }
+ 
+ static int ideapad_register_rfkill(struct ideapad_private *priv, int dev)
+@@ -825,6 +829,7 @@ static int ideapad_acpi_add(struct platform_device *pdev)
+ 	int cfg;
+ 	struct ideapad_private *priv;
+ 	struct acpi_device *adev;
++	char const *s;
+ 
+ 	ret = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
+ 	if (ret)
+@@ -842,6 +847,15 @@ static int ideapad_acpi_add(struct platform_device *pdev)
+ 	priv->adev = adev;
+ 	priv->platform_device = pdev;
+ 
++	/*  check for Yoga 2 Pro, which has no rfkill switches */
++	s = dmi_get_system_info(DMI_PRODUCT_VERSION);
++	if (s && !(strncmp(s, "Lenovo Yoga 2 Pro", 17)) ) {
++		priv->rfkill_present = false;
++	} else {
++		priv->rfkill_present = true;
++	}
++
++
+ 	ret = ideapad_sysfs_init(priv);
+ 	if (ret)
+ 		goto sysfs_failed;
+@@ -854,11 +868,13 @@ static int ideapad_acpi_add(struct platform_device *pdev)
+ 	if (ret)
+ 		goto input_failed;
+ 
+-	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
+-		if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
+-			ideapad_register_rfkill(priv, i);
+-		else
+-			priv->rfk[i] = NULL;
++	if (priv->rfkill_present) {
++		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
++			if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
++				ideapad_register_rfkill(priv, i);
++			else
++				priv->rfk[i] = NULL;
++		}
+ 	}
+ 	ideapad_sync_rfk_state(priv);
+ 	ideapad_sync_touchpad_state(priv);
+@@ -877,8 +893,10 @@ static int ideapad_acpi_add(struct platform_device *pdev)
+ notification_failed:
+ 	ideapad_backlight_exit(priv);
+ backlight_failed:
+-	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+-		ideapad_unregister_rfkill(priv, i);
++	if (priv->rfkill_present) {
++		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
++			ideapad_unregister_rfkill(priv, i);
++	}
+ 	ideapad_input_exit(priv);
+ input_failed:
+ 	ideapad_debugfs_exit(priv);
+@@ -897,8 +915,10 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
+ 	acpi_remove_notify_handler(priv->adev->handle,
+ 		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify);
+ 	ideapad_backlight_exit(priv);
+-	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+-		ideapad_unregister_rfkill(priv, i);
++	if (priv->rfkill_present) {
++		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
++			ideapad_unregister_rfkill(priv, i);
++	}
+ 	ideapad_input_exit(priv);
+ 	ideapad_debugfs_exit(priv);
+ 	ideapad_sysfs_exit(priv);
+
