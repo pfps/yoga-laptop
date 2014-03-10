@@ -549,7 +549,7 @@ int main(int argc, char **argv)
 
   for ( i = 0; i != iterations; i++ ) {
     if (debug_level > 2) printf("Finding orientation %d\n",orientation);
-    orientation = find_orientation(dev_num,dev_dir_name,trigger_name,channels,num_channels);
+    if ( (orientation = find_orientation(dev_num,dev_dir_name,trigger_name,channels,num_channels) ) < 0 ) break;
     if (debug_level > 2) printf("Found orientation %d %d %d\n",orientation,previous_orientation,screen_orientation);
     if (debug_level > 0) printf ("Orientation at %3.1f is %s\n", ((double)sleeping/1000000.0) * i ,symbolic_orientation(orientation));
     if ( previous_orientation == orientation /* only rotate when stable */ &&

@@ -16,13 +16,13 @@ hid-sensor-hub and IIO bus drivers.  If /dev/iio:device0 exists then the
 drivers are available.  However, the sensors or sensor hub are not reliably
 initialized in 3.12.  The sensors can, individually, end up either making no
 reports, making reports only when values change significantly, or making a
-stream of reports.  Poking the sensors and rebooting may put them into a
-reasonable state.  In 3.13 the sensors appear to be reliably
-mis-initialized.  There is a fix in the works.
+stream of reports.  In 3.13 the sensors appear to be reliably
+mis-initialized.  There is a patched driver here and the patch has been
+submitted for inclusion in future versions of the kernel.
 
-There is a program that reads the 3D accelerometer on the screen, determines
-the screen's orientation, and rotates it and the touchscreen appropriately.
-The program is available at https://github.com/pfps/yoga-laptop.git
+There is a program here that reads the 3D accelerometer on the screen,
+determines the screen's orientation, and rotates it and the touchscreen
+appropriately.  
 
 
 2/ Function Keys and Non-keyboard Buttons
@@ -59,8 +59,8 @@ Notify 0x0008, which is reasonably handled by the ideapad_laptop module.
 ACPI Notify 0x0040 is done during lid close when AC power is connected (and
 sometimes when it is not).  The ideapad_laptop module handles this
 reasonably.  However, ideapad_laptop assumes that the laptop has an RF kill
-switch and breaks WiFi on Yogas.  I have contributed a patch that recognizes
-the Yoga 2 Pro and works correctly for them.
+switch and breaks WiFi on Yogas.  There is a patched version of
+ideapad_laptop here.
 
 Refresh Desktop (F5) appears to be indistinguishable from F5.  
 
