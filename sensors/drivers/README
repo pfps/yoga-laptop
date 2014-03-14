@@ -11,21 +11,18 @@ WARNING:  Installing via `sudo make install` will install new kernel modules!
 0/ Turn off secure kernel mode, if necessary.  In Fedora secure kernel mode
    is set if you use secure UEFI booting, so turn that off.
 
-1/ Make sure that you have the industrialio and sensor hub kernel modules available 
+1/ Make sure that you have the industrialio and sensor hub kernel modules
+   available  
 
 2/ Get the kernel-devel package for your kernel
 	sudo install kernel-devel
-
-2.5/ Copy the updated hid-sensor-ids.h to the kernel includes (you may have
-     to adjust the path to where your kernel includes are) 
-	sudo cp /usr/src/kernels/`uname -r`/include/linux/hid-sensor-ids.h /usr/src/kernels/`uname -r`/include/linux/hid-sensor-ids.h.orig
-	sudo cp hid-sensor-ids.h /usr/src/kernels/`uname -r`/include/linux/hid-sensor-ids.h 
 
 3/ Compile the modules - there will be warnings
 	make
 
 4/ Install the kernel modules
 	sudo make install
+
 
 
 If you don't want to install new kernel modules you can instead:

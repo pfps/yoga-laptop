@@ -16,6 +16,8 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+#include "hid-sensor-ids.h"
+
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>

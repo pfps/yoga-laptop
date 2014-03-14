@@ -15,6 +15,7 @@
  * this program; if not, write to the Free Software Foundation, Inc.
  *
  */
+#include "hid-sensor-ids.h"
 
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -28,7 +29,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-#include "../common/hid-sensors/hid-sensor-trigger.h"
+#include "hid-sensor-trigger.h"
 
 enum incl_3d_channel {
 	CHANNEL_SCAN_INDEX_X,

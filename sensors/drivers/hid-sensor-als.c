@@ -16,6 +16,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+#include "hid-sensor-ids.h"
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -28,7 +29,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-#include "../common/hid-sensors/hid-sensor-trigger.h"
+#include "hid-sensor-trigger.h"
 
 #define CHANNEL_SCAN_INDEX_ILLUM 0
 
