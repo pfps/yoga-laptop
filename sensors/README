@@ -1,7 +1,3 @@
-Do you feel lucky?
-  ./setup
-
-
 This is not a production-quality system.  It should be turned into a program
 that reads the sensors and produces events on a system bus so that multiple
 programs can follow the sensors.
@@ -12,6 +8,8 @@ and may be reliably mis-initialized in 3.13.  I have a patched
 hid-sensor-hub.c and hid-sensor-ids.h that appear to fix the problem.  This
 patch should get into distributed code in the near future.
 
+NOTE: In most cases you will have to build and install the drivers (in the
+drivers directory) for this program to work correctly.
 
 
 	Orientation Monitor and Screen Rotation
@@ -77,58 +75,6 @@ WARNING:  This is not production quality code.  It execs xrandr and xinput.
 WARNING:  The distributed iio_utils.h has lots of bugs.
 WARNING:  The device appears to get into stuck modes.  To try to unstick
  	  sudo ./unstick X where X is the number of the accelerometer
-
-
-	Generic Industrial IO Buffer Monitor
-
-generic_buffer is a program to read samples from an Industrial IO sensor and
-print them.
-
-To run, just
-	sudo ./generic_buffer -c count -n name
-where count is how many samples to print and name is the IIO name of the sensor.
-
-To check whether the Yoga sensor is working on your system, try
-	sudo ./generic_buffer -c 10 -n gyro_3d
-If you get output like the following (maybe after rotating the Yoga) then
-things should be set up correctly (but it is still possible that the
-accelerometer is stuck somehow).
-
-iio device number being used is 2
-iio trigger number being used is 2
-DEV_DIR_NAME /sys/bus/iio/devices/iio:device2  TRIGGER_NAME gyro_3d-dev2
-SCAN_SIZE 12
-N000: in_anglvel_x  -103 -103.00  in_anglvel_y     2    2.00  in_anglvel_z   -16  -16.00  
-N001: in_anglvel_x  -122 -122.00  in_anglvel_y     2    2.00  in_anglvel_z    27   27.00  
-N002: in_anglvel_x  -140 -140.00  in_anglvel_y    14   14.00  in_anglvel_z    -4   -4.00  
-N003: in_anglvel_x  -134 -134.00  in_anglvel_y    -4   -4.00  in_anglvel_z     9    9.00  
-N004: in_anglvel_x   -42  -42.00  in_anglvel_y     2    2.00  in_anglvel_z    -4   -4.00  
-N005: in_anglvel_x   -24  -24.00  in_anglvel_y     2    2.00  in_anglvel_z    -4   -4.00  
-N006: in_anglvel_x   -12  -12.00  in_anglvel_y     8    8.00  in_anglvel_z     3    3.00  
-N007: in_anglvel_x   -18  -18.00  in_anglvel_y    14   14.00  in_anglvel_z     3    3.00  
-N008: in_anglvel_x     7    7.00  in_anglvel_y    -4   -4.00  in_anglvel_z   -10  -10.00  
-N009: in_anglvel_x   -36  -36.00  in_anglvel_y     8    8.00  in_anglvel_z     3    3.00  
-
-If you get only the first four lines of the above, then the sensor or sensor
-hub is stuck somehow.  You could try again with accel_3d to see if the
-accelerometer is working.  (This wasn't recommended as the first try, as it
-is possible to get a sensor stuck.)  A sensor can be stuck because its
-channels cannot be enabled, because its buffer cannot be set up, because its
-trigger cannot be set up, and probably for other reasons.
-
-If you get no output, an error message, or "Failed to find the gyro_3d" then 
-something is wrong with your setup.  It could be that Industrial IO is not
-in your distribution.  It could be that you don't have the right sort of
-chip.  It could be that something went wrong when the devices were
-initialized.  You will have to dig around to see what is wrong.
-
-
-
-	Determing the Hinge Angle
-
-hinge is the beginnings of a system to determine the hinge angle from the
-two accelerometers.  It is not functional as of yet.
-
 
 
 

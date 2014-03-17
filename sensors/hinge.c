@@ -14,14 +14,12 @@
  * iterations defaults to -1
  * debug level defaults to 0 (useful range is -1 to 4)
  *
- * This program reads the Invensense accelerometer and uses gravity to
- * determine which edge of the Yoga screen is up.  If none of the edges is
- * up very much, this is treated as being flat.   When an edge is up twice
- * in a row, the hinge of the screen and ELAN Touchscreen is adjusted
- * to match.
+ *	Determing the Hinge Angle
+ *
+ * hinge is the beginnings of a system to determine the hinge angle from the
+ * two accelerometers.  It is not functional as of yet.
  *
  * WARNING:  This is not production quality code.  
- *	     This code exec's xrandr and xinput as root.
  */
 
 #define _GNU_SOURCE
