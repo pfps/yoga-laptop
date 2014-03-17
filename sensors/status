@@ -1,4 +1,4 @@
-#!/bin/csh
+#!/bin/sh
 # Print the status for iio device X
 
 # Output should be something like
@@ -14,15 +14,16 @@
 # A sensor not in use should not have its buffer enabled 
 # and should not have a current trigger
 
-set X = $1
+X=$1
 
 echo -n "Sensor name: "
 cat /sys/bus/iio/devices/iio:device${X}/name
 
-foreach f ( /sys/bus/iio/devices/iio:device${X}/scan_elements/*_en )
+for f in /sys/bus/iio/devices/iio:device${X}/scan_elements/*_en 
+do
   echo -n "Channel $f:t status: "
   cat $f
-end 
+done
 
 echo -n "Buffer status: "
 cat /sys/bus/iio/devices/iio:device${X}/buffer/enable
