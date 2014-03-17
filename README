@@ -17,12 +17,12 @@ drivers are available.  However, the sensors or sensor hub are not reliably
 initialized in 3.12.  The sensors can, individually, end up either making no
 reports, making reports only when values change significantly, or making a
 stream of reports.  In 3.13 the sensors appear to be reliably
-mis-initialized.  There is a patched driver here and the patch has been
-submitted for inclusion in future versions of the kernel.
+mis-initialized.  There is a patched driver in sensors/drivers and the patch
+has been submitted for inclusion in future versions of the kernel.
 
-There is a program here that reads the 3D accelerometer on the screen,
-determines the screen's orientation, and rotates it and the touchscreen
-appropriately.  
+There is a program in the sensors directory that reads the 3D accelerometer
+on the screen, determines the screen's orientation, and rotates it and the
+touchscreen appropriately.
 
 
 2/ Function Keys and Non-keyboard Buttons
@@ -60,7 +60,7 @@ ACPI Notify 0x0040 is done during lid close when AC power is connected (and
 sometimes when it is not).  The ideapad_laptop module handles this
 reasonably.  However, ideapad_laptop assumes that the laptop has an RF kill
 switch and breaks WiFi on Yogas.  There is a patched version of
-ideapad_laptop here.
+ideapad_laptop in the yoga_laptop directory.
 
 Refresh Desktop (F5) appears to be indistinguishable from F5.  
 
@@ -72,16 +72,8 @@ touches.  However, this behaviour appears to be done by the embedded
 controller, and change may not be possible
 
 Disable Touchpad (F6) produces scan codes that are not recognized.  This can
-be fixed by 'sudo setkeycodes e03f 191' and then setting XF86TouchPadToggle
-to trigger a script to toggle the state of the touchpad.  Pause and Break
-produce the same character.  This can be fixed by 'sudo setkeycodes e046
-124; xmodmap -e "keycode 132 = Break"'.  Be sure that keycode 124 is not
-used for any other key.  The easiest way to set up these two keys is to
-utilize udev by creating etc/udev/hwdb.d/90-yoga-keyboard.hwdb, containing
-
-keyboard:dmi:bvn*:bvr*:bd*:svnLENOVO*:pn*20266*:pvr*
- KEYBOARD_KEY_bf=f21		# should be touchpad_toggle, but f21 is used for this
- KEYBOARD_KEY_c6=f24		# should be break, but need something < 255
-
-Then 
-  sudo udevadm hwdb --update
+be fixed manually by 'sudo setkeycodes e03f 191' and then setting
+XF86TouchPadToggle to trigger a script to toggle the state of the touchpad.
+Pause and Break produce the same character.  This can be fixed by 'sudo
+setkeycodes e046 194; xmodmap -e "keycode 202 = Break"'.  A better way to do
+this is via udev rules - see the yoga_laptop/README for more information.
