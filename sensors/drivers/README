@@ -8,6 +8,8 @@ WARNING:  Installing via `sudo make install` will install new kernel modules!
 
 		Making it work
 
+NOTE:  This has to be done each time you install a new kernel.
+
 0/ Turn off secure kernel mode, if necessary.  In Fedora secure kernel mode
    is set if you use secure UEFI booting, so turn that off.
 
