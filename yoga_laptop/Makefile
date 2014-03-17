@@ -4,6 +4,7 @@ obj-m := ideapad-laptop.o
 KDIR := /usr/src/kernels/$(shell uname -r)
 PWD := $(shell pwd)
 default:
+	@echo NOTE:  You need to have the kernel-devel package installed
 	echo $(KDIR)
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 
