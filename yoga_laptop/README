@@ -21,7 +21,14 @@ this module blacklisted, but this fixes its problems on the Yoga 2 Pro.
 
 Right now the only thing that this module is known to be useful for on Yoga
 2 Pros is to handle two keys (FnF7 and Novo) that only produce ACPI
-notifications.
+notifications.  To use this module, you cannot be running in secure mode, as
+the driver will not be signed.
+
+To make the module itself you need to download the kernel development
+package.  In Fedora, this is done via
+  sudo yum install kernel-devel
+Then compile the module via
+  make
 
 The module depends on the sparse keymap kernel module.  To ensure that this
 is available
@@ -29,9 +36,8 @@ is available
 Then to load the module itself
   sudo insmod ./ideapad_laptop.ko 
 
-Alternatively, `sudo make install-driver` after `make`, puts the driver into
-the kernel modules.  Once this is done, remove the blacklist for the module.
-You cannot be running in secure mode, as the driver will not be signed.
+Alternatively, `sudo make install-driver`, puts the driver into the kernel
+modules.  Once this is done, remove the blacklist for the module.  
 
 
 2/ Fn F6 and Break
@@ -41,35 +47,19 @@ codes, edit /etc/udev/hwdb.d/90-yoga-keyboard.hwdb to be
 keyboard:dmi:bvn*:bvr*:bd*:svnLENOVO*:pn*20266*:pvr*
  KEYBOARD_KEY_bf=f21		# should be touchpad_toggle, but f21 is used for this
  KEYBOARD_KEY_c6=f24		# should be break, but need something < 255
-and then `sudo udevadm hwdb --update`.
-
-Note:  Neither of these are ideal, but X can't handle key codes over 256.
-using F21 for touchpad_toggle is a general convention, but F24 for break is
-not. 
+and then `sudo udevadm hwdb --update`.  Both of these can easily be done via
+`sudo make install-keys' 
 
 To make X turn F24 into BREAK, requires xmodmap so edit ~/.Xmodmap to be
 keycode 202 = Break
 
+Note:  This solution is not ideal, but X can't handle key codes over 256.
+using F21 for touchpad_toggle is a general convention, but F24 for break is
+not. 
+
 Note:  Some X distributions don't look at ~/.Xmodmap.   The XKB extension
 could be used, but that seems like quite a bit of overkill.   If anyone gets
 that route to work, please tell how you did it.
-
-
-The above can easily be done via `sudo make install-keys'
-
-
-localectl set-x11-keymap us pc105+inet
-
-
-
-	To produce Break instead
-		sudo setkeycodes e046 124; xmodmap -e "keycode 132 = Break"
-
-
-
-
-
-
 
 
 
@@ -102,7 +92,7 @@ VPC2004 80 2000	identified as for the AirplaneMode key
 
 
 
-The patch has been sent in to 
+The patch to ideapad-laptop.c has been sent in to 
   ike.pan@canonical.com
   matthew.garrett@nebula.com
   platform-driver-x86@vger.kernel.org

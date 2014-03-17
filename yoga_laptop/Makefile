@@ -21,5 +21,6 @@ install-keys:
 	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb /etc/udev/hwdb.d
 	udevadm hwdb --update
 	@echo NOTE: You also need to cp -pr xkeycode "~/.Xmodmap"
+# How about adding "keycode 202 = Break" to /etc/X11/Xmodmap??
 
 install: install-driver install-keys
