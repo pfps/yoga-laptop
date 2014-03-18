@@ -6,6 +6,8 @@ KDIR := /usr/src/kernels/$(shell uname -r)
 PWD := $(shell pwd)
 #ccflags-y := -E
 
+DDIR := /usr/lib/modules/$(shell uname -r)/kernel/drivers/
+
 
 default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
@@ -20,9 +22,9 @@ veryclean:	clean
 	rm -f *.ko
 
 install:
-	install --owner=root --group=root --mode=644 hid-sensor-hub.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/hid
-	install --owner=root --group=root --mode=644 hid-sensor-trigger.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/common/hid-sensors
-	install --owner=root --group=root --mode=644 hid-sensor-accel-3d.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/accel
-	install --owner=root --group=root --mode=644 hid-sensor-als.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/light
-	install --owner=root --group=root --mode=644 hid-sensor-gyro-3d.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/gyro
-	install --owner=root --group=root --mode=644 hid-sensor-magn-3d.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/iio/magnetometer 
+	install --owner=root --group=root --mode=644 hid-sensor-hub.ko $(DDIR)/hid
+	install --owner=root --group=root --mode=644 hid-sensor-trigger.ko $(DDIR)/iio/common/hid-sensors
+	install --owner=root --group=root --mode=644 hid-sensor-accel-3d.ko $(DDIR)/iio/accel
+	install --owner=root --group=root --mode=644 hid-sensor-als.ko $(DDIR)/iio/light
+	install --owner=root --group=root --mode=644 hid-sensor-gyro-3d.ko $(DDIR)/iio/gyro
+	install --owner=root --group=root --mode=644 hid-sensor-magn-3d.ko $(DDIR)/iio/magnetometer 

@@ -13,11 +13,19 @@ NOTE:  This has to be done each time you install a new kernel.
 0/ Turn off secure kernel mode, if necessary.  In Fedora secure kernel mode
    is set if you use secure UEFI booting, so turn that off.
 
-1/ Make sure that you have the industrialio and sensor hub kernel modules
-   available  
+1/ You may need to have the industrialio and sensor hub kernel modules
+   available for the drivers to work.  They were part of Fedora 20, so I
+   have never tried to add them in.
 
-2/ Get the kernel-devel package for your kernel
+2/ Get the kernel-devel and kernel-headers packages for your kernel.  On
+   Fedora this is done via
 	sudo install kernel-devel
+	sudo install kernel-headers
+   On some distributions you may also have to install build-essentials
+
+3/ The makefile has to be adjusted in Ubuntu to set KDIR and DDIR to
+	KDIR := /usr/src/linux-headers-$(shell uname -r)
+	DDIR := /lib/modules/$(shell uname -r)/kernel/drivers/
 
 3/ Compile the modules - there will be warnings
 	make
