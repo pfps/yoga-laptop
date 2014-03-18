@@ -2,14 +2,20 @@ obj-m := hid-sensor-trigger.o hid-sensor-hub.o \
 	hid-sensor-als.o hid-sensor-accel-3d.o hid-sensor-gyro-3d.o hid-sensor-magn-3d.o hid-sensor-incl-3d.o \
 	hid-sensor-orient.o hid-sensor-custom.o hid-sensor-generic.o
 
-KDIR := /usr/src/kernels/$(shell uname -r)
 PWD := $(shell pwd)
-#ccflags-y := -E
 
+ifeq ($shell grep Fedora /etc/issue,"")
+KDIR := /usr/src/linux-headers-$(shell uname -r)
+DDIR := /lib/modules/$(shell uname -r)/kernel/drivers/
+else
+KDIR := /usr/src/kernels/$(shell uname -r)
 DDIR := /usr/lib/modules/$(shell uname -r)/kernel/drivers/
+endif
+
 
 
 default:
+	echo $(KDIR)
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 
 hid-example:	hid-example.c

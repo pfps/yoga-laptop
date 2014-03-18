@@ -23,9 +23,9 @@ NOTE:  This has to be done each time you install a new kernel.
 	sudo install kernel-headers
    On some distributions you may also have to install build-essentials
 
-3/ The makefile has to be adjusted in Ubuntu to set KDIR and DDIR to
-	KDIR := /usr/src/linux-headers-$(shell uname -r)
-	DDIR := /lib/modules/$(shell uname -r)/kernel/drivers/
+3/ The makefile tries to figure out which distribution it is in and adjust 
+KDIR and DDIR accordingly.   For some distribuions modifications may need to
+be made.
 
 3/ Compile the modules - there will be warnings
 	make
