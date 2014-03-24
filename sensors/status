@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Print the status for iio device X
 
 # Output should be something like

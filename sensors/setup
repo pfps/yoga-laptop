@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Fix up permissions for all sensors and run orientation program
 # Single optional argument is group to use instead of the user's main group
 
