@@ -1,5 +1,7 @@
 #!/bin/bash
 # Print the status for iio device X
+# Usage:  ./status <n>
+# where <n> (default 0) is the number of an iio device
 
 # Output should be something like
 #
@@ -14,7 +16,12 @@
 # A sensor not in use should not have its buffer enabled 
 # and should not have a current trigger
 
-X=$1
+
+X=0
+if [ $# -eq 1 ] ; then
+  X=$1
+fi
+
 
 echo -n "Sensor name: "
 cat /sys/bus/iio/devices/iio:device${X}/name
