@@ -1,8 +1,15 @@
-#obj-m := yoga_laptop.o test.o
 obj-m := ideapad-laptop.o
-#KDIR := /lib/modules/$(shell uname -r)/build
-KDIR := /usr/src/kernels/$(shell uname -r)
 PWD := $(shell pwd)
+
+# this is a simple check for which distibution we are on - a better solution is probably need
+ifeq ($shell grep Fedora /etc/issue,"")
+KDIR := /usr/src/kernels/$(shell uname -r)
+else
+KDIR := /usr/src/linux-headers-$(shell uname -r)
+endif
+MODDIR := /lib/modules/$(shell uname -r)/kernel/drivers/platform/x86
+
+
 default:
 	@echo NOTE:  You need to have the kernel-devel package installed
 	echo $(KDIR)
@@ -14,9 +21,8 @@ clean:
 veryclean: clean
 	rm -f *.ko
 
-
 install-driver:
-	install --owner=root --group=root --mode=644 ideapad-laptop.ko /usr/lib/modules/$(shell uname -r)/kernel/drivers/platform/x86
+	install --owner=root --group=root --mode=644 ideapad-laptop.ko $(MODDIR)
 
 install-keys:
 	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb /etc/udev/hwdb.d
