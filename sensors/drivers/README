@@ -86,12 +86,6 @@ There are two kinds of drivers
 1/ Drivers from 3.14 - these should be good quality
 2/ Drivers for the other sensors - these probably need work
 
-The build system is also hacked together and needs to be improved.  Some
-include files have been copied into this directory.  This should all be
-fixed up.  Some shortcuts had to be made because the common infrastructure
-doesn't support these kinds of drivers.
-
-
 Files for drivers:
 
 hid-sensor-ids.h	From 3.14
