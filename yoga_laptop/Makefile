@@ -1,8 +1,9 @@
+include /etc/os-release 
+
 obj-m := ideapad-laptop.o
 PWD := $(shell pwd)
 
-# this is a simple check for which distibution we are on - a better solution is probably need
-ifeq ($shell grep Fedora /etc/issue,"")
+ifeq "$(NAME)" "Fedora"
 KDIR := /usr/src/kernels/$(shell uname -r)
 else
 KDIR := /usr/src/linux-headers-$(shell uname -r)
