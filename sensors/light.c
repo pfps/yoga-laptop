@@ -140,7 +140,7 @@ void process_scan(char *data,
 					/*pfps printf("FIX %x\n",val); */
 					/*printf("%s %4d %6.1f  ", channels[k].name,
 							val, ((float) val + channels[k].offset) * channels[k].scale);*/
-					int backlight = limit_interval(1, 100, val*max_output/max_input);
+					int backlight = limit_interval(1, max_output, val*max_output/max_input);
 					printf("Current backlight level: %d\n", backlight);
 					FILE* fp = fopen("/sys/class/backlight/intel_backlight/brightness", "w");
 					fprintf(fp, "%d", backlight);
@@ -345,19 +345,12 @@ Options:\n\
   --help		Print this help message and exit\n\
   --version		Print version information and exit\n\
   --count=iterations	If >0 run for only this number of iterations [-1]\n\
-  --name=accel_name	Industrial IO accelerometer device name [accel_3d]\n\
-  --touchscreen=ts_name	TouchScreen name [ELAN Touchscreen]\n\
+  --name=accel_name	Industrial IO accelerometer device name [als]\n\
   --usleep=time		Polling sleep time in microseconds [1000000]\n\
   --debug=level		Print out debugging information (-1 through 4) [0]\n\
-  --max-input=value Max input value of sensor [1400]\
-  --max-output=value Max output defined /sys/class/backlight/intel_backlight/max_brightness [937]\
-\n\
-orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
-rotates the screen and two SIGUSR1 interrupts within a second or two by \n\
-rotating the screen clockwise and suspending rotations.\n\
-Use via something like\n\
-    pkill --signal SIGUSR1 --exact orientation\n";
-static char* version = "light version 0.2\n";
+  --max-input=value Max input value of sensor [1400]\n\
+  --max-output=value Max output defined /sys/class/backlight/intel_backlight/max_brightness [937]\n";
+static char* version = "light version 0.3\n";
 
 int main(int argc, char **argv) {
 	char *trigger_name = NULL, *device_name = "als";
@@ -415,11 +408,11 @@ int main(int argc, char **argv) {
 	}
 
 	if (version_flag) {
-		printf(version);
+		printf("%s", version);
 		exit(0);
 	}
 	if (help_flag) {
-		printf(help);
+		printf("%s", help);
 		exit(0);
 	}
 
