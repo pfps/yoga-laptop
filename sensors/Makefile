@@ -1,10 +1,10 @@
 SCRIPTS = setup unstick status
 
-SOURCES = iio_utils.h generic_buffer.c orientation.c
+SOURCES = iio_utils.h generic_buffer.c orientation.c light.c
 
-EXECS = orientation generic_buffer
+EXECS = orientation generic_buffer light
 
-all: generic_buffer orientation
+all: generic_buffer orientation light
 
 generic_buffer: generic_buffer.c iio_utils.h
 	cc generic_buffer.c -o generic_buffer
@@ -15,6 +15,12 @@ orientation: orientation.c iio_utils.h
 
 hinge: hinge.c iio_utils.h
 	cc hinge.c -o hinge
+
+light: light.c
+	@echo "This step requires root priviledges"
+	cc light.c -o light
+	chown root:root light
+	chmod u+s light
 
 install:
 	@echo "Because the accelerometer is not reliably set up in standard kernels"
