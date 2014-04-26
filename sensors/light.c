@@ -49,6 +49,8 @@
 
 
 static int debug_level = 0;
+static int max_input = 1400;
+static int max_output = 937;
 
 /**
  * size_from_channelarray() - calculate the storage size of a scan
@@ -107,63 +109,76 @@ void print2byte(int input, struct iio_channel_info *info) {
  * @num_channels:       number of channels
  **/
 void process_scan(char *data,
-                  struct iio_channel_info *channels,
-                  int num_channels)
-{
-        int k;
-        for (k = 0; k < num_channels; k++) {
-	  /*pfps printf("PROCESS SCAN channel %d bytes %d location %d signed %d data %x %d\n",k,
-			  channels[k].bytes,channels[k].location,
-			  channels[k].is_signed,(data+channels[k].location),*(data+channels[k].location));*/
-                switch (channels[k].bytes) {
-                        /* only a few cases implemented so far */
-                case 2:
-                        print2byte(*(uint16_t *)(data + channels[k].location),
-                                   &channels[k]);
-                        break;
-                case 4:
-                        if (!channels[k].is_signed) {
-                                uint32_t val = *(uint32_t *)
-                                        (data + channels[k].location);
-                                printf("SCALED %05f ", ((float)val +
-                                                 channels[k].offset)*
-                                       channels[k].scale);
-                        } else {
-			  int32_t val = *(int32_t *) (data + channels[k].location);
-			  /*pfps printf("VAL RAW %d %8x  ",channels[k].location,val); */
-			  val = val >> channels[k].shift;
-			  /*pfps printf("SHIFT %d %8x  ",channels[k].shift,val); */
-			  if ( channels[k].bits_used < 32 ) val &= ((uint32_t)1 << channels[k].bits_used) - 1;
-			  /*pfps printf("MASK %d %8x  ",channels[k].bits_used,val); */
-			  val = (int32_t)(val << (32 - channels[k].bits_used)) >> (32 - channels[k].bits_used);
-			  /*pfps printf("FIX %x\n",val); */
-			  printf("%s %4d %6.1f  ", channels[k].name,
-				 val, ((float)val + channels[k].offset)* channels[k].scale);
-			}
-                        break;
-                case 8:
-                        if (channels[k].is_signed) {
-                                int64_t val = *(int64_t *)
-                                        (data +
-                                         channels[k].location);
-                                if ((val >> channels[k].bits_used) & 1)
-                                        val = (val & channels[k].mask) |
-                                                ~channels[k].mask;
-                                /* special case for timestamp */
-                                if (channels[k].scale == 1.0f &&
-                                     channels[k].offset == 0.0f)
-                                        printf("TIME %" PRId64 " ", val);
-                                else
-                                        printf("SCALED %05f ", ((float)val +
-                                                         channels[k].offset)*
-                                               channels[k].scale);
-                        }
-                        break;
-                default:
-                        break;
-                }
+		struct iio_channel_info *channels,
+		int num_channels) {
+	int k;
+	for (k = 0; k < num_channels; k++) {
+		/*pfps printf("PROCESS SCAN channel %d bytes %d location %d signed %d data %x %d\n",k,
+				channels[k].bytes,channels[k].location,
+				channels[k].is_signed,(data+channels[k].location),*(data+channels[k].location));*/
+		switch (channels[k].bytes) {
+				/* only a few cases implemented so far */
+			case 2:
+				print2byte(*(uint16_t *) (data + channels[k].location),
+						&channels[k]);
+				break;
+			case 4:
+				if (!channels[k].is_signed) {
+					uint32_t val = *(uint32_t *)
+							(data + channels[k].location);
+					printf("SCALED %05f ", ((float) val +
+							channels[k].offset) *
+							channels[k].scale);
+				} else {
+					int32_t val = *(int32_t *) (data + channels[k].location);
+					/*pfps printf("VAL RAW %d %8x  ",channels[k].location,val); */
+					val = val >> channels[k].shift;
+					/*pfps printf("SHIFT %d %8x  ",channels[k].shift,val); */
+					if (channels[k].bits_used < 32) val &= ((uint32_t) 1 << channels[k].bits_used) - 1;
+					/*pfps printf("MASK %d %8x  ",channels[k].bits_used,val); */
+					val = (int32_t) (val << (32 - channels[k].bits_used)) >> (32 - channels[k].bits_used);
+					/*pfps printf("FIX %x\n",val); */
+					/*printf("%s %4d %6.1f  ", channels[k].name,
+							val, ((float) val + channels[k].offset) * channels[k].scale);*/
+					int backlight = limit_interval(1, 100, val*max_output/max_input);
+					printf("Current backlight level: %d\n", backlight);
+					FILE* fp = fopen("/sys/class/backlight/intel_backlight/brightness", "w");
+					fprintf(fp, "%d", backlight);
+					fclose(fp);
+				}
+				break;
+			case 8:
+				if (channels[k].is_signed) {
+					int64_t val = *(int64_t *)
+							(data +
+							channels[k].location);
+					if ((val >> channels[k].bits_used) & 1)
+						val = (val & channels[k].mask) |
+						~channels[k].mask;
+					/* special case for timestamp */
+					if (channels[k].scale == 1.0f &&
+							channels[k].offset == 0.0f)
+						printf("TIME %" PRId64 " ", val);
+					else
+						printf("SCALED %05f ", ((float) val +
+							channels[k].offset) *
+							channels[k].scale);
+				}
+				break;
+			default:
+				break;
+		}
 	}
 	printf("\n");
+}
+
+/**
+ *
+ */
+int limit_interval(int min, int max, int nmr) {
+	if (nmr < min) return min;
+	if (nmr > max) return max;
+	return nmr;
 }
 
 /**
@@ -238,10 +253,6 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 	int i;
 	char * data, * inverted;
 	ssize_t read_size;
-
-	int accel_x, accel_y, accel_z;
-	bool present_x, present_y, present_z;
-
 
 	/* Set the device trigger to be the data ready trigger */
 	ret = write_sysfs_string_and_verify("trigger/current_trigger",
@@ -338,6 +349,8 @@ Options:\n\
   --touchscreen=ts_name	TouchScreen name [ELAN Touchscreen]\n\
   --usleep=time		Polling sleep time in microseconds [1000000]\n\
   --debug=level		Print out debugging information (-1 through 4) [0]\n\
+  --max-input=value Max input value of sensor [1400]\
+  --max-output=value Max output defined /sys/class/backlight/intel_backlight/max_brightness [937]\
 \n\
 orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
 rotates the screen and two SIGUSR1 interrupts within a second or two by \n\
@@ -366,6 +379,8 @@ int main(int argc, char **argv) {
 		{"touchscreen", required_argument, 0, 't'},
 		{"usleep", required_argument, 0, 'u'},
 		{"debug", required_argument, 0, 'd'},
+		{"max-input", required_argument, 0, 'i'},
+		{"max-output", required_argument, 0, 'o'},
 		{0, 0, 0, 0}
 	};
 	int option_index = 0;
@@ -386,6 +401,12 @@ int main(int argc, char **argv) {
 				break;
 			case 'u':
 				sleeping = strtol(optarg, &dummy, 10);
+				break;
+			case 'i':
+				max_input = strtol(optarg, &dummy, 10);
+				break;
+			case 'o':
+				max_output = strtol(optarg, &dummy, 10);
 				break;
 			case '?':
 				printf("Invalid flag\n");
