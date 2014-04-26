@@ -49,18 +49,8 @@
 
 
 static int debug_level = 0;
-static char *touchScreenName = "ELAN Touchscreen";
-static bool orientation_lock = false;
-static int screen_orientation = -1;
-static int previous_orientation = -1;
-
-enum {
-	FLAT, TOP, RIGHT, BOTTOM, LEFT
-}; /* various orientations */
-
-int rotate_left_orientation(orientation) {
-	return (LEFT == orientation) ? TOP : orientation + 1;
-}
+static int max_input = 1400;
+static int max_output = 937;
 
 /**
  * size_from_channelarray() - calculate the storage size of a scan
@@ -111,58 +101,84 @@ void print2byte(int input, struct iio_channel_info *info) {
 }
 
 /**
- * process_scan_1() - get an integer value for a particular channel
+ * process_scan() - print out the values in SI units
  * @data:               pointer to the start of the scan
  * @channels:           information about the channels. Note
  *  size_from_channelarray must have been called first to fill the
  *  location offsets.
  * @num_channels:       number of channels
- * ch_name:		name of channel to get
- * ch_val:		value for the channel
- * ch_present:		whether the channel is present
  **/
-void process_scan_1(char *data, struct iio_channel_info *channels, int num_channels,
-		char *ch_name, int *ch_val, bool *ch_present) {
+void process_scan(char *data,
+		struct iio_channel_info *channels,
+		int num_channels) {
 	int k;
 	for (k = 0; k < num_channels; k++) {
-		if (0 == strcmp(channels[k].name, ch_name)) {
-			switch (channels[k].bytes) {
-					/* only a few cases implemented so far */
-				case 2:
-					break;
-				case 4:
-					if (!channels[k].is_signed) {
-						uint32_t val = *(uint32_t *) (data + channels[k].location);
-						val = val >> channels[k].shift;
-						if (channels[k].bits_used < 32) val &= ((uint32_t) 1 << channels[k].bits_used) - 1;
-						*ch_val = (int) val;
-						*ch_present = true;
-					} else {
-						int32_t val = *(int32_t *) (data + channels[k].location);
-						val = val >> channels[k].shift;
-						if (channels[k].bits_used < 32) val &= ((uint32_t) 1 << channels[k].bits_used) - 1;
-						val = (int32_t) (val << (32 - channels[k].bits_used)) >> (32 - channels[k].bits_used);
-						*ch_val = (int) val;
-						*ch_present = true;
-					}
-					break;
-				case 8:
-					break;
-			}
+		/*pfps printf("PROCESS SCAN channel %d bytes %d location %d signed %d data %x %d\n",k,
+				channels[k].bytes,channels[k].location,
+				channels[k].is_signed,(data+channels[k].location),*(data+channels[k].location));*/
+		switch (channels[k].bytes) {
+				/* only a few cases implemented so far */
+			case 2:
+				print2byte(*(uint16_t *) (data + channels[k].location),
+						&channels[k]);
+				break;
+			case 4:
+				if (!channels[k].is_signed) {
+					uint32_t val = *(uint32_t *)
+							(data + channels[k].location);
+					printf("SCALED %05f ", ((float) val +
+							channels[k].offset) *
+							channels[k].scale);
+				} else {
+					int32_t val = *(int32_t *) (data + channels[k].location);
+					/*pfps printf("VAL RAW %d %8x  ",channels[k].location,val); */
+					val = val >> channels[k].shift;
+					/*pfps printf("SHIFT %d %8x  ",channels[k].shift,val); */
+					if (channels[k].bits_used < 32) val &= ((uint32_t) 1 << channels[k].bits_used) - 1;
+					/*pfps printf("MASK %d %8x  ",channels[k].bits_used,val); */
+					val = (int32_t) (val << (32 - channels[k].bits_used)) >> (32 - channels[k].bits_used);
+					/*pfps printf("FIX %x\n",val); */
+					/*printf("%s %4d %6.1f  ", channels[k].name,
+							val, ((float) val + channels[k].offset) * channels[k].scale);*/
+					int backlight = limit_interval(1, 100, val*max_output/max_input);
+					printf("Current backlight level: %d\n", backlight);
+					FILE* fp = fopen("/sys/class/backlight/intel_backlight/brightness", "w");
+					fprintf(fp, "%d", backlight);
+					fclose(fp);
+				}
+				break;
+			case 8:
+				if (channels[k].is_signed) {
+					int64_t val = *(int64_t *)
+							(data +
+							channels[k].location);
+					if ((val >> channels[k].bits_used) & 1)
+						val = (val & channels[k].mask) |
+						~channels[k].mask;
+					/* special case for timestamp */
+					if (channels[k].scale == 1.0f &&
+							channels[k].offset == 0.0f)
+						printf("TIME %" PRId64 " ", val);
+					else
+						printf("SCALED %05f ", ((float) val +
+							channels[k].offset) *
+							channels[k].scale);
+				}
+				break;
+			default:
+				break;
 		}
 	}
+	printf("\n");
 }
 
 /**
- * process_scan_3() - get three integer values - see above
- **/
-void process_scan_3(char *data, struct iio_channel_info *channels, int num_channels,
-		char *ch_name_1, int *ch_val_1, bool *ch_present_1,
-		char *ch_name_2, int *ch_val_2, bool *ch_present_2,
-		char *ch_name_3, int *ch_val_3, bool *ch_present_3) {
-	process_scan_1(data, channels, num_channels, ch_name_1, ch_val_1, ch_present_1);
-	process_scan_1(data, channels, num_channels, ch_name_2, ch_val_2, ch_present_2);
-	process_scan_1(data, channels, num_channels, ch_name_3, ch_val_3, ch_present_3);
+ *
+ */
+int limit_interval(int min, int max, int nmr) {
+	if (nmr < min) return min;
+	if (nmr > max) return max;
+	return nmr;
 }
 
 /**
@@ -219,6 +235,15 @@ error_ret:
 	return ret;
 }
 
+void print_bytes(int length, char* data) {
+	int i;
+	for (i = 0; i < length; i++) {
+		if (i > 0) printf(":");
+		printf("%02X", data[i]);
+	}
+	printf("\n");
+}
+
 int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 		struct iio_channel_info *channels, int num_channels) {
 	char * buffer_access;
@@ -226,14 +251,8 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 
 	int fp, buf_len = 127;
 	int i;
-	char * data;
+	char * data, * inverted;
 	ssize_t read_size;
-	int orientation;
-
-
-	int accel_x, accel_y, accel_z;
-	bool present_x, present_y, present_z;
-
 
 	/* Set the device trigger to be the data ready trigger */
 	ret = write_sysfs_string_and_verify("trigger/current_trigger",
@@ -243,7 +262,7 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 		goto error_ret;
 	}
 
-	/* Setup ring buffer parameters */
+	/*	Setup ring buffer parameters */
 	ret = write_sysfs_int("buffer/length", dev_dir_name, 128);
 	if (ret < 0) goto error_ret;
 	/* Enable the buffer */
@@ -274,7 +293,7 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 	}
 
 	/* Actually read the data */
-	/*  printf("Reading from %s\n",buffer_access); */
+	/*  printf("Readin g from %s\n",buffer_access); */
 	struct pollfd pfd = {.fd = fp, .events = POLLIN,};
 	if (debug_level > 3) printf("Polling the data\n");
 	poll(&pfd, 1, -1);
@@ -283,24 +302,9 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 	if (debug_level > 3) printf("Read the data\n");
 	if (read_size == -EAGAIN) {
 		printf("nothing available\n");
-	} else
-		for (i = 0; i < read_size / scan_size; i++) {
-			process_scan_3(data + scan_size*i, channels, num_channels,
-					"in_accel_x", &accel_x, &present_x,
-					"in_accel_y", &accel_y, &present_y,
-					"in_accel_z", &accel_z, &present_z);
-			/* Determine orientation */
-			int accel_x_abs = abs(accel_x);
-			int accel_y_abs = abs(accel_y);
-			int accel_z_abs = abs(accel_z);
-			if (accel_z_abs > 4 * accel_x_abs && accel_z_abs > 4 * accel_y_abs) {
-				orientation = FLAT;
-			} else if (3 * accel_y_abs > 2 * accel_x_abs) {
-				orientation = accel_y > 0 ? BOTTOM : TOP;
-			} else orientation = accel_x > 0 ? LEFT : RIGHT;
-			if (debug_level > 1) printf("Orientation %d: %5d %5d %5d\n",
-					orientation, accel_x, accel_y, accel_z);
-		}
+	} else {
+		process_scan(data, channels, num_channels);
+	}
 
 	/* Stop the buffer */
 	ret = write_sysfs_int("buffer/enable", dev_dir_name, 0);
@@ -309,8 +313,6 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 
 	/* Disconnect the trigger - just write a dummy name. */
 	write_sysfs_string("trigger/current_trigger", dev_dir_name, "NULL");
-
-	ret = orientation;
 
 error_close_buffer_access:
 	close(fp);
@@ -321,64 +323,6 @@ error_free_data:
 	free(data);
 error_ret:
 	return ret;
-}
-
-/* symbolic orientation as used in xrandr */
-char * symbolic_orientation(orientation) {
-	char * orient;
-	switch (orientation) {
-		case FLAT: orient = "flat";
-			break;
-		case BOTTOM: orient = "inverted";
-			break;
-		case TOP: orient = "normal";
-			break;
-		case LEFT: orient = "left";
-			break;
-		case RIGHT: orient = "right";
-			break;
-	}
-	return orient;
-}
-
-void rotate_to(orient) {
-	char * xrandr = "/usr/bin/xrandr";
-	char * xinput = "/usr/bin/xinput";
-	char * tsnormal[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"1", "0", "0", "0", "1", "0", "0", "0", "1", (char *) NULL};
-	char * tsright[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"0", "1", "0", "-1", "0", "1", "0", "0", "1", (char *) NULL};
-	char * tsleft[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"0", "-1", "1", "1", "0", "0", "0", "0", "1", (char *) NULL};
-	char * tsinverted[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"-1", "0", "1", "0", "-1", "1", "0", "0", "1", (char *) NULL};
-	int status, pid;
-	char *orientation = symbolic_orientation(orient);
-
-	printf("ROTATE to %s\n", orientation);
-	screen_orientation = orient;
-	if (0 == (pid = fork())) { /* rotate the screen */
-		execl(xrandr, xrandr, "--orientation", orientation, (char *) NULL);
-	} else {
-		wait(&status);
-		if (status) printf("First child (xrandr) returned %d\n", status);
-
-		if (0 != strlen(touchScreenName) && 0 == (pid = fork())) { /* rotate the touchscreen */
-			switch (orient) {
-				case TOP: execv(xinput, tsnormal);
-					break;
-				case BOTTOM: execv(xinput, tsinverted);
-					break;
-				case LEFT: execv(xinput, tsleft);
-					break;
-				case RIGHT: execv(xinput, tsright);
-					break;
-			}
-		} else {
-			wait(&status);
-			if (status) printf("Second child (xinput) returned %d\n", status);
-		}
-	}
 }
 
 static char *dev_dir_name;
@@ -394,47 +338,6 @@ void sigint_callback_handler(int signum) {
 }
 
 static time_t last_sigusr_time = 0;
-
-void sigusr_callback_handler(int signum) {
-	int now = time(NULL), pid, status, bufflen;
-	char * buffer;
-	char * notify = "/usr/bin/notify-send"; // -i /home/buri/.utils/yoga/rotateon.png "Rotace aktivována"";
-	char * tslockon[] = {notify, "-i", "/home/buri/.utils/yoga/rotateon.png", "Autorotate enabled", (char*) NULL};
-	char * tslockoff[] = {notify, "-i", "/home/buri/.utils/yoga/rotateoff.png", "Autorotate disabled", (char*) NULL};
-
-	previous_orientation = screen_orientation;
-	if (now <= last_sigusr_time + 1) {
-		orientation_lock = true;
-		if (debug_level > 0) {
-			printf("Quick second signal rotates and then suspends rotation at %ld diff %ld\n",
-					(long) now, (long) (now - last_sigusr_time));
-		} else if (debug_level > -1) {
-			printf("Quick second signal rotates and then suspends rotation\n");
-		}
-		last_sigusr_time = 0;
-		rotate_to(rotate_left_orientation(screen_orientation));
-	} else {
-		orientation_lock = !orientation_lock;
-		if (debug_level > 0) {
-			printf("Signal %s rotation at %ld diff %ld\n",
-					orientation_lock ? "suspends" : "resumes", (long) now, (long) (now - last_sigusr_time));
-		} else if (debug_level > -1) {
-			printf("Signal %s rotation\n", orientation_lock ? "suspends" : "resumes");
-		}
-		last_sigusr_time = now;
-		if (0 == (pid = fork())) {
-			if (orientation_lock) {
-				system("/usr/bin/notify-send -i /home/buri/.utils/yoga/rotateoff.png \"Autorotate disabled\"");
-			} else {
-				system("/usr/bin/notify-send -i /home/buri/.utils/yoga/rotateon.png \"Autorotate enabled\"");
-			}
-		} else {
-			wait(&status);
-		}
-	}
-}
-
-
 static char* help = "orientation monitors the Yoga accelerometer and\n\
 rotates the screen and touchscreen to match\n\
 \n\
@@ -446,17 +349,18 @@ Options:\n\
   --touchscreen=ts_name	TouchScreen name [ELAN Touchscreen]\n\
   --usleep=time		Polling sleep time in microseconds [1000000]\n\
   --debug=level		Print out debugging information (-1 through 4) [0]\n\
+  --max-input=value Max input value of sensor [1400]\
+  --max-output=value Max output defined /sys/class/backlight/intel_backlight/max_brightness [937]\
 \n\
 orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
 rotates the screen and two SIGUSR1 interrupts within a second or two by \n\
 rotating the screen clockwise and suspending rotations.\n\
 Use via something like\n\
     pkill --signal SIGUSR1 --exact orientation\n";
-
-static char* version = "orientation version 0.2\n";
+static char* version = "light version 0.2\n";
 
 int main(int argc, char **argv) {
-	char *trigger_name = NULL, *device_name = "accel_3d";
+	char *trigger_name = NULL, *device_name = "als";
 	int dev_num;
 	int num_channels;
 	struct iio_channel_info *channels;
@@ -475,6 +379,8 @@ int main(int argc, char **argv) {
 		{"touchscreen", required_argument, 0, 't'},
 		{"usleep", required_argument, 0, 'u'},
 		{"debug", required_argument, 0, 'd'},
+		{"max-input", required_argument, 0, 'i'},
+		{"max-output", required_argument, 0, 'o'},
 		{0, 0, 0, 0}
 	};
 	int option_index = 0;
@@ -490,14 +396,17 @@ int main(int argc, char **argv) {
 			case 'n':
 				device_name = optarg;
 				break;
-			case 't':
-				touchScreenName = optarg;
-				break;
 			case 'd':
 				debug_level = strtol(optarg, &dummy, 10);
 				break;
 			case 'u':
 				sleeping = strtol(optarg, &dummy, 10);
+				break;
+			case 'i':
+				max_input = strtol(optarg, &dummy, 10);
+				break;
+			case 'o':
+				max_output = strtol(optarg, &dummy, 10);
 				break;
 			case '?':
 				printf("Invalid flag\n");
@@ -516,7 +425,6 @@ int main(int argc, char **argv) {
 
 	signal(SIGINT, sigint_callback_handler);
 	signal(SIGHUP, sigint_callback_handler);
-	signal(SIGUSR1, sigusr_callback_handler);
 
 	/* Find the device requested */
 	dev_num = find_type_by_name(device_name, "iio:device");
@@ -563,15 +471,7 @@ int main(int argc, char **argv) {
 	}
 
 	for (i = 0; i != iterations; i++) {
-		if (debug_level > 2) printf("Finding orientation %d\n", orientation);
-		if ((orientation = find_orientation(dev_num, dev_dir_name, trigger_name, channels, num_channels)) < 0) break;
-		if (debug_level > 2) printf("Found orientation %d %d %d\n", orientation, previous_orientation, screen_orientation);
-		if (debug_level > 0) printf("Orientation at %3.1f is %s\n", ((double) sleeping / 1000000.0) * i, symbolic_orientation(orientation));
-		if (previous_orientation == orientation /* only rotate when stable */ &&
-				orientation != screen_orientation && orientation != FLAT && !orientation_lock) {
-			rotate_to(orientation);
-		}
-		previous_orientation = orientation;
+		find_orientation(dev_num, dev_dir_name, trigger_name, channels, num_channels);
 		usleep(sleeping);
 	}
 
