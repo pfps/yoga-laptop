@@ -1,1 +1,8 @@
 nbproject
+
+sensors/drivers/.*
+sensors/drivers/*.o
+sensors/drivers/*.c
+sensors/drivers/*.ko
+sensors/drivers/modules.order
+sensors/drivers/Module.symvers
