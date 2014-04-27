@@ -30,23 +30,18 @@ For the program to work best, it needs to manipulate the accelerometer
 controls and read accelerometer data without running as root. One way to do
 this manually is to be in a group and have the device files  also be in that
 group and accessible as necessary, e.g., via  
-  sudo chgrp wheel /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en 
+  sudo chgrp group /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en 
   sudo chmod g+w /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en 
-  sudo chgrp wheel /sys/bus/iio/devices/iio:device*/buffer/*
+  sudo chgrp group /sys/bus/iio/devices/iio:device*/buffer/*
   sudo chmod g+w /sys/bus/iio/devices/iio:device*/buffer/* 
-  sudo chgrp wheel /sys/bus/iio/devices/iio:device*/trigger/current_trigger
+  sudo chgrp group /sys/bus/iio/devices/iio:device*/trigger/current_trigger
   sudo chmod g+w /sys/bus/iio/devices/iio:device*/trigger/current_trigger
-  sudo chgrp wheel /dev/iio:device*
+  sudo chgrp group /dev/iio:device*
   sudo chmod g+rw /dev/iio:device*
 [What is the best way to do this automatically?  Via udev rules?]
-In the absence of something better, the script
-  ./setup 
-makes the sensor usable by processes in the user's first group and then
-starts the program.  (It is benign to run this script each time the
-orientation program is started.)   
+In the absence of something better, `make install` does this for the user's
+group, along with installing the program in /usr/bin.
 
-To run the program directly, just use
-  ./orientation
 Options are
   --debug=level, -d level 
 	produce more and more outut as the argument is increased, default 0
