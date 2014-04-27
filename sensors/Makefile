@@ -4,6 +4,9 @@ SOURCES = iio_utils.h generic_buffer.c orientation.c light.c
 
 EXECS = orientation generic_buffer light
 
+LOGNAME := $(shell /usr/bin/logname)
+GROUP := $(shell /usr/bin/id -gn `/usr/bin/logname`)
+
 all: generic_buffer orientation light
 
 generic_buffer: generic_buffer.c iio_utils.h
@@ -16,14 +19,13 @@ orientation: orientation.c iio_utils.h
 hinge: hinge.c iio_utils.h
 	cc hinge.c -o hinge
 
-light: light.c
-	@echo "This step requires root priviledges"
-	cc light.c -o light
-	chown root:root light
-	chmod u+s light
-
-install:
-	@echo "Because the accelerometer is not reliably set up in standard kernels"
-	@echo "it is better to run the orientation program directly, at least for"
-	@echo "the first few times.  See README for more information."
+install:	orientation
+	@echo Making the control files writable by you and putting the command in /usr/bin
+	@echo NOTE: In most cases you also need to install drivers from the drivers directory
+	chgrp $(GROUP) /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
+	chmod g+w /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
+	chgrp $(GROUP) /dev/iio:device*
+	chmod g+rw /dev/iio:device*
+	install --owner=root --group=root --mode=755 orientation /usr/bin
+	@echo NOTE: In most cases you also need to install drivers from the drivers directory
 
