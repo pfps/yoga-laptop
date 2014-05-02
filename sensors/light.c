@@ -30,11 +30,31 @@
 #include "libs/config.h"
 #include "libs/device_info.h"
 
-void process_scan(char *data,
-		struct iio_channel_info *channels,
-		int num_channels, Config config);
-int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
-		void (*callback)(char*, struct iio_channel_info*, int, Config), Config);
+/**
+ * process_scan() - print out the values in SI units
+ * @data:               pointer to the start of the scan
+ * @channels:           information about the channels. Note
+ *  size_from_channelarray must have been called first to fill the
+ *  location offsets.
+ * @num_channels:       number of channels
+ **/
+void process_scan(char *data, Device_info info, Config config) {
+	if (info.channels_count != 1 || info.channels[0].bytes != 4) {
+		return;
+	}
+	struct iio_channel_info channel = info.channels[0];
+	if (channel.is_signed) {
+		int32_t val = *(int32_t *) (data + channel.location);
+		val = val >> channel.shift;
+		if (channel.bits_used < 32) val &= ((uint32_t) 1 << channel.bits_used) - 1;
+		val = (int32_t) (val << (32 - channel.bits_used)) >> (32 - channel.bits_used);
+		int backlight = limit_interval(1, config.light_backlight_max, val * config.light_backlight_max / config.light_ambient_max);
+		printf("Current backlight level: %d\n", backlight);
+		FILE* fp = fopen("/sys/class/backlight/intel_backlight/brightness", "w");
+		fprintf(fp, "%d", backlight);
+		fclose(fp);
+	}
+}
 
 static char *dev_dir_name;
 
@@ -56,21 +76,30 @@ int main(int argc, char **argv) {
 
 	// Update default settings
 	config.device_name = "als";
+	FILE* fp_backlight_max = fopen("/sys/class/backlight/intel_backlight/max_brightness", "r");
+	if (fp_backlight_max) {
+		if(!fscanf(fp_backlight_max, "%d", &config.light_backlight_max)) {
+			fprintf(stderr, "Error reading max brightness, using defaults...\n");
+		}
+		fclose(fp_backlight_max);
+	} else {
+		fprintf(stderr, "Error reading max brightness, using defaults...\n");
+	}
 
 	/* Arguments definition */
 	static char* version = "light version 0.3\n";
 	static char* help;
 	asprintf(&help, "light monitors ambient light sensor and adjusts backlight acordingly\
-	\n\
-	Options:\n\
-	  --help					Print this help message and exit\n\
-	  --version					Print version information and exit\n\
-	  --count=<iterations>		If >0 run for only this number of iterations [%d]\n\
-	  --name=<device>			Industrial IO accelerometer device name [%s]\n\
-	  --usleep=<microtime>		Polling sleep time in microseconds [%u]\n\
-	  --debug=<level>			Print out debugging information (-1 through 4) [%d]\n\
-	  --ambient-max=<integer>	Minimum ambient light required for full backlight [%u]\n\
-	  --backlight-max=<integer>	Max output defined /sys/class/backlight/intel_backlight/max_brightness [%u]\n",
+\n\
+Options:\n\
+  --help			Print this help message and exit\n\
+  --version			Print version information and exit\n\
+  --count=<iterations>		If >0 run for only this number of iterations [%d]\n\
+  --name=<device>		Industrial IO accelerometer device name [%s]\n\
+  --usleep=<microtime>		Polling sleep time in microseconds [%u]\n\
+  --debug=<level>		Print out debugging information (-1 through 4) [%d]\n\
+  --ambient-max=<integer>	Minimum ambient light required for full backlight [%u]\n\
+  --backlight-max=<integer>	Max output defined /sys/class/backlight/intel_backlight/max_brightness [auto/%d]\n",
 			config.iterations, (char*) config.device_name, config.poll_timeout, config.debug_level,
 			config.light_ambient_max, config.light_backlight_max);
 
@@ -191,160 +220,6 @@ error_free_triggername:
 	free(trigger_name);
 error_free_dev_dir_name:
 	free(dev_dir_name);
-error_ret:
-	return ret;
-}
-
-/**
- * process_scan() - print out the values in SI units
- * @data:               pointer to the start of the scan
- * @channels:           information about the channels. Note
- *  size_from_channelarray must have been called first to fill the
- *  location offsets.
- * @num_channels:       number of channels
- **/
-void process_scan(char *data,
-		struct iio_channel_info *channels,
-		int num_channels, Config config) {
-	int k;
-	for (k = 0; k < num_channels; k++) {
-		/*pfps printf("PROCESS SCAN channel %d bytes %d location %d signed %d data %x %d\n",k,
-				channels[k].bytes,channels[k].location,
-				channels[k].is_signed,(data+channels[k].location),*(data+channels[k].location));*/
-		switch (channels[k].bytes) {
-				/* only a few cases implemented so far */
-			case 2:
-				print2byte(*(uint16_t *) (data + channels[k].location),
-						&channels[k]);
-				break;
-			case 4:
-				if (!channels[k].is_signed) {
-					uint32_t val = *(uint32_t *)
-							(data + channels[k].location);
-					printf("SCALED %05f ", ((float) val +
-							channels[k].offset) *
-							channels[k].scale);
-				} else {
-					int32_t val = *(int32_t *) (data + channels[k].location);
-					/*pfps printf("VAL RAW %d %8x  ",channels[k].location,val); */
-					val = val >> channels[k].shift;
-					/*pfps printf("SHIFT %d %8x  ",channels[k].shift,val); */
-					if (channels[k].bits_used < 32) val &= ((uint32_t) 1 << channels[k].bits_used) - 1;
-					/*pfps printf("MASK %d %8x  ",channels[k].bits_used,val); */
-					val = (int32_t) (val << (32 - channels[k].bits_used)) >> (32 - channels[k].bits_used);
-					/*pfps printf("FIX %x\n",val); */
-					/*printf("%s %4d %6.1f  ", channels[k].name,
-							val, ((float) val + channels[k].offset) * channels[k].scale);*/
-					int backlight = limit_interval(1, config.light_ambient_max, val * config.light_backlight_max / config.light_ambient_max);
-					printf("Current backlight level: %d\n", backlight);
-					FILE* fp = fopen("/sys/class/backlight/intel_backlight/brightness", "w");
-					fprintf(fp, "%d", backlight);
-					fclose(fp);
-				}
-				break;
-			case 8:
-				if (channels[k].is_signed) {
-					int64_t val = *(int64_t *)
-							(data +
-							channels[k].location);
-					if ((val >> channels[k].bits_used) & 1)
-						val = (val & channels[k].mask) |
-						~channels[k].mask;
-					/* special case for timestamp */
-					if (channels[k].scale == 1.0f &&
-							channels[k].offset == 0.0f)
-						printf("TIME %" PRId64 " ", val);
-					else
-						printf("SCALED %05f ", ((float) val +
-							channels[k].offset) *
-							channels[k].scale);
-				}
-				break;
-			default:
-				break;
-		}
-	}
-	printf("\n");
-}
-
-int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
-		void (*callback)(char*, struct iio_channel_info*, int, Config), Config config) {
-	char * buffer_access;
-	int ret, scan_size, dev_num = info->device_id, num_channels = info->channels_count;
-	struct iio_channel_info *channels = info->channels;
-
-	int fp, buf_len = 127;
-	int i;
-	char * data, * inverted;
-	ssize_t read_size;
-
-	/* Set the device trigger to be the data ready trigger */
-	ret = write_sysfs_string_and_verify("trigger/current_trigger",
-			dev_dir_name, trigger_name);
-	if (ret < 0) {
-		printf("Failed to write current_trigger file %s\n", strerror(-ret));
-		goto error_ret;
-	}
-
-	/*	Setup ring buffer parameters */
-	ret = write_sysfs_int("buffer/length", dev_dir_name, 128);
-	if (ret < 0) goto error_ret;
-	/* Enable the buffer */
-	ret = write_sysfs_int_and_verify("buffer/enable", dev_dir_name, 1);
-	if (ret < 0) {
-		printf("Unable to enable the buffer %d\n", ret);
-		goto error_ret;
-	}
-	scan_size = size_from_channelarray(channels, num_channels);
-	data = malloc(scan_size * buf_len);
-	if (!data) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	ret = asprintf(&buffer_access, "/dev/iio:device%d", dev_num);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_free_data;
-	}
-	/* Attempt to open non blocking to access dev */
-	fp = open(buffer_access, O_RDONLY | O_NONBLOCK);
-	/*  printf("OPEN file %s\n",buffer_access); */
-	if (fp == -1) { /* If it isn't there make the node */
-		printf("Failed to open %s : %s\n", buffer_access, strerror(errno));
-		ret = -errno;
-		goto error_free_buffer_access;
-	}
-
-	/* Actually read the data */
-	/*  printf("Readin g from %s\n",buffer_access); */
-	struct pollfd pfd = {.fd = fp, .events = POLLIN,};
-	if (config.debug_level > 3) printf("Polling the data\n");
-	poll(&pfd, 1, -1);
-	if (config.debug_level > 3) printf("Reading the data\n");
-	read_size = read(fp, data, buf_len * scan_size);
-	if (config.debug_level > 3) printf("Read the data\n");
-	if (read_size == -EAGAIN) {
-		printf("nothing available\n");
-	} else {
-		callback(data, channels, num_channels, config);
-	}
-
-	/* Stop the buffer */
-	ret = write_sysfs_int("buffer/enable", dev_dir_name, 0);
-	if (ret < 0)
-		goto error_close_buffer_access;
-
-	/* Disconnect the trigger - just write a dummy name. */
-	write_sysfs_string("trigger/current_trigger", dev_dir_name, "NULL");
-
-error_close_buffer_access:
-	close(fp);
-	/*	printf("CLOSE fp %s\n",buffer_access); */
-error_free_buffer_access:
-	free(buffer_access);
-error_free_data:
-	free(data);
 error_ret:
 	return ret;
 }
