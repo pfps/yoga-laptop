@@ -26,78 +26,183 @@
 
 #define _GNU_SOURCE
 
-#include <unistd.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <sys/dir.h>
-#include <linux/types.h>
-#include <string.h>
-#include <poll.h>
-#include <endian.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <syslog.h> /*pfps*/
-#include <stdbool.h>
-#include <signal.h>
-#include <time.h>
-#include "iio_utils.h"
+#include "libs/common.h"
+#include "libs/config.h"
+#include "libs/device_info.h"
 
-#include <X11/extensions/Xrandr.h>
+void process_scan(char *data,
+		struct iio_channel_info *channels,
+		int num_channels, Config config);
+int prepare_output(int dev_num, char * dev_dir_name, char * trigger_name,
+		struct iio_channel_info *channels, int num_channels,
+		void (*callback)(char*, struct iio_channel_info*, int, Config), Config) ;
 
+static char *dev_dir_name;
 
-static int debug_level = 0;
-static int max_input = 1400;
-static int max_output = 937;
-
-/**
- * size_from_channelarray() - calculate the storage size of a scan
- * @channels:           the channel info array
- * @num_channels:       number of channels
- *
- * Has the side effect of filling the channels[i].location values used
- * in processing the buffer output.
- **/
-int size_from_channelarray(struct iio_channel_info *channels, int num_channels) {
-	int bytes = 0;
-	int i = 0;
-	while (i < num_channels) {
-		if (bytes % channels[i].bytes == 0)
-			channels[i].location = bytes;
-		else
-			channels[i].location = bytes - bytes % channels[i].bytes
-				+ channels[i].bytes;
-		bytes = channels[i].location + channels[i].bytes;
-		i++;
+void sigint_callback_handler(int signum) {
+	if (dev_dir_name) {
+		/* Disconnect the trigger - just write a dummy name. */
+		write_sysfs_string("trigger/current_trigger", dev_dir_name, "NULL");
+		/* Stop the buffer */
+		write_sysfs_int("buffer/enable", dev_dir_name, 0);
 	}
-	return bytes;
+	exit(signum);
 }
 
-void print2byte(int input, struct iio_channel_info *info) {
-	/* First swap if incorrect endian */
-	if (info->be)
-		input = be16toh((uint16_t) input);
-	else
-		input = le16toh((uint16_t) input);
+int main(int argc, char **argv) {
+	/* Configuration variables */
+	char *trigger_name = NULL, *config_file = "conf/light.ini";
+	Config config = Config_default;
+	GKeyFile* gfile;
+	GError* gerror;
+	static int version_flag = 0, help_flag = 0;
 
-	/*
-	 * Shift before conversion to avoid sign extension
-	 * of left aligned data
-	 */
-	input = input >> info->shift;
-	if (info->is_signed) {
-		int16_t val = input;
-		val &= (1 << info->bits_used) - 1;
-		val = (int16_t) (val << (16 - info->bits_used)) >>
-				(16 - info->bits_used);
-		if (debug_level > 1) printf("SCALED %05f ", ((float) val + info->offset) * info->scale);
+	// Update default settings
+	config.device_name = "als";
+
+	/* Arguments definition */
+	static char* version = "light version 0.3\n";
+	static char* help;
+	asprintf(&help, "light monitors ambient light sensor and adjusts backlight acordingly\
+	\n\
+	Options:\n\
+	  --help					Print this help message and exit\n\
+	  --version					Print version information and exit\n\
+	  --count=<iterations>		If >0 run for only this number of iterations [%d]\n\
+	  --name=<device>			Industrial IO accelerometer device name [%s]\n\
+	  --usleep=<microtime>		Polling sleep time in microseconds [%u]\n\
+	  --debug=<level>			Print out debugging information (-1 through 4) [%d]\n\
+	  --ambient-max=<integer>	Minimum ambient light required for full backlight [%u]\n\
+	  --backlight-max=<integer>	Max output defined /sys/class/backlight/intel_backlight/max_brightness [%u]\n",
+			config.iterations, (char*)config.device_name, config.poll_timeout, config.debug_level,
+			config.light_ambient_max, config.light_backlight_max);
+
+	/* Device info */
+	Device_info info;
+
+	/* Other variables */
+	int ret, c, i;
+	char * dummy;
+
+
+	/*if(g_key_file_load_from_file(gfile, config_file, G_KEY_FILE_NONE, &gerror) != TRUE) {
+		fprintf(stderr, "Config file not found, loading default values (%s)...\n", gerror->message);
 	} else {
-		uint16_t val = input;
-		val &= (1 << info->bits_used) - 1;
-		if (debug_level > 1) printf("SCALED %05f ", ((float) val + info->offset) * info->scale);
+		config.device_name = g_key_file_get_string(gfile, "Device", "Name", &gerror);
+	}*/
+
+	static struct option long_options[] = {
+		{"version", no_argument, &version_flag, 1},
+		{"help", no_argument, &help_flag, 1},
+		{"count", required_argument, 0, 'c'},
+		{"name", required_argument, 0, 'n'},
+		{"touchscreen", required_argument, 0, 't'},
+		{"usleep", required_argument, 0, 'u'},
+		{"debug", required_argument, 0, 'd'},
+		{"ambient-max", required_argument, 0, 'a'},
+		{"backlight-max", required_argument, 0, 'b'},
+		{0, 0, 0, 0}
+	};
+	int option_index = 0;
+
+	while ((c = getopt_long(argc, argv, "c:n:d:t:u:", long_options, &option_index))
+			!= -1) {
+		switch (c) {
+			case 0:
+				break;
+			case 'c':
+				config.iterations = strtol(optarg, &dummy, 10);
+				break;
+			case 'n':
+				config.device_name = optarg;
+				break;
+			case 'd':
+				config.debug_level = strtol(optarg, &dummy, 10);
+				break;
+			case 'u':
+				config.poll_timeout = strtol(optarg, &dummy, 10);
+				break;
+			case 'a':
+				config.light_ambient_max = strtol(optarg, &dummy, 10);
+				break;
+			case 'b':
+				config.light_backlight_max = strtol(optarg, &dummy, 10);
+				break;
+			case '?':
+				printf("Invalid flag, use --help for aditional info\n");
+				return -1;
+		}
 	}
+
+	if (version_flag) {
+		printf("%s", version);
+		exit(0);
+	}
+	if (help_flag) {
+		printf("%s", help);
+		exit(0);
+	}
+
+	signal(SIGINT, sigint_callback_handler);
+	signal(SIGHUP, sigint_callback_handler);
+
+	/* Find the device requested */
+	info.device_id = find_type_by_name(config.device_name, "iio:device");
+	if (info.device_id < 0) {
+		printf("Failed to find the %s sensor\n", config.device_name);
+		ret = -ENODEV;
+		goto error_ret;
+	}
+	if (config.debug_level > DEBUG_ALL) printf("iio device number being used is %d\n", info.device_id);
+
+	/* enable the sensors in the device */
+	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, info.device_id);
+	if (ret < 0) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+
+	enable_sensors(dev_dir_name);
+
+	if (trigger_name == NULL) {
+		/* Build the trigger name. */
+		ret = asprintf(&trigger_name,
+				"%s-dev%d", config.device_name, info.device_id);
+		if (ret < 0) {
+			ret = -ENOMEM;
+			goto error_ret;
+		}
+	}
+	/* Verify the trigger exists */
+	ret = find_type_by_name(trigger_name, "trigger");
+	if (ret < 0) {
+		printf("Failed to find the trigger %s\n", trigger_name);
+		ret = -ENODEV;
+		goto error_free_triggername;
+	}
+	if (config.debug_level > DEBUG_ALL) printf("iio trigger number being used is %d\n", ret);
+
+	/* Parse the files in scan_elements to identify what channels are present */
+	ret = build_channel_array(dev_dir_name, &(info.channels), &(info.channels_count));
+	if (ret) {
+		printf("Problem reading scan element information\n");
+		printf("diag %s\n", dev_dir_name);
+		goto error_free_triggername;
+	}
+
+	for (i = 0; i != config.iterations; i++) {
+		prepare_output(info.device_id, dev_dir_name, trigger_name, info.channels, info.channels_count, &process_scan, config);
+		usleep(config.poll_timeout);
+	}
+
+	return 0;
+
+error_free_triggername:
+	free(trigger_name);
+error_free_dev_dir_name:
+	free(dev_dir_name);
+error_ret:
+	return ret;
 }
 
 /**
@@ -110,7 +215,7 @@ void print2byte(int input, struct iio_channel_info *info) {
  **/
 void process_scan(char *data,
 		struct iio_channel_info *channels,
-		int num_channels) {
+		int num_channels, Config config) {
 	int k;
 	for (k = 0; k < num_channels; k++) {
 		/*pfps printf("PROCESS SCAN channel %d bytes %d location %d signed %d data %x %d\n",k,
@@ -140,7 +245,7 @@ void process_scan(char *data,
 					/*pfps printf("FIX %x\n",val); */
 					/*printf("%s %4d %6.1f  ", channels[k].name,
 							val, ((float) val + channels[k].offset) * channels[k].scale);*/
-					int backlight = limit_interval(1, max_output, val*max_output/max_input);
+					int backlight = limit_interval(1, config.light_ambient_max, val * config.light_backlight_max / config.light_ambient_max);
 					printf("Current backlight level: %d\n", backlight);
 					FILE* fp = fopen("/sys/class/backlight/intel_backlight/brightness", "w");
 					fprintf(fp, "%d", backlight);
@@ -171,81 +276,9 @@ void process_scan(char *data,
 	}
 	printf("\n");
 }
-
-/**
- *
- */
-int limit_interval(int min, int max, int nmr) {
-	if (nmr < min) return min;
-	if (nmr > max) return max;
-	return nmr;
-}
-
-/**
- * enable_sensors: enable all the sensors in a device
- * @device_dir: the IIO device directory in sysfs
- * @
- **/
-static int enable_sensors(const char *device_dir) {
-	DIR *dp;
-	FILE *sysfsfp;
-	int i;
-	int ret;
-	const struct dirent *ent;
-	char *scan_el_dir;
-	char *filename;
-
-	ret = asprintf(&scan_el_dir, FORMAT_SCAN_ELEMENTS_DIR, device_dir);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	dp = opendir(scan_el_dir);
-	if (dp == NULL) {
-		ret = -errno;
-		goto error_free_name;
-	}
-	while (ent = readdir(dp), ent != NULL)
-		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
-				"_en") == 0) {
-			ret = asprintf(&filename,
-					"%s/%s", scan_el_dir, ent->d_name);
-			if (ret < 0) {
-				ret = -ENOMEM;
-				goto error_close_dir;
-			}
-			sysfsfp = fopen(filename, "r");
-			if (sysfsfp == NULL) {
-				ret = -errno;
-				free(filename);
-				goto error_close_dir;
-			}
-			fscanf(sysfsfp, "%d", &ret);
-			fclose(sysfsfp);
-			if (!ret)
-				write_sysfs_int(ent->d_name, scan_el_dir, 1);
-			free(filename);
-		}
-	ret = 0;
-error_close_dir:
-	closedir(dp);
-error_free_name:
-	free(scan_el_dir);
-error_ret:
-	return ret;
-}
-
-void print_bytes(int length, char* data) {
-	int i;
-	for (i = 0; i < length; i++) {
-		if (i > 0) printf(":");
-		printf("%02X", data[i]);
-	}
-	printf("\n");
-}
-
-int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
-		struct iio_channel_info *channels, int num_channels) {
+int prepare_output(int dev_num, char * dev_dir_name, char * trigger_name,
+		struct iio_channel_info *channels, int num_channels,
+		void (*callback)(char*, struct iio_channel_info*, int, Config), Config config) {
 	char * buffer_access;
 	int ret, scan_size;
 
@@ -295,15 +328,15 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
 	/* Actually read the data */
 	/*  printf("Readin g from %s\n",buffer_access); */
 	struct pollfd pfd = {.fd = fp, .events = POLLIN,};
-	if (debug_level > 3) printf("Polling the data\n");
+	if (config.debug_level > 3) printf("Polling the data\n");
 	poll(&pfd, 1, -1);
-	if (debug_level > 3) printf("Reading the data\n");
+	if (config.debug_level > 3) printf("Reading the data\n");
 	read_size = read(fp, data, buf_len * scan_size);
-	if (debug_level > 3) printf("Read the data\n");
+	if (config.debug_level > 3) printf("Read the data\n");
 	if (read_size == -EAGAIN) {
 		printf("nothing available\n");
 	} else {
-		process_scan(data, channels, num_channels);
+		callback(data, channels, num_channels, config);
 	}
 
 	/* Stop the buffer */
@@ -321,159 +354,6 @@ error_free_buffer_access:
 	free(buffer_access);
 error_free_data:
 	free(data);
-error_ret:
-	return ret;
-}
-
-static char *dev_dir_name;
-
-void sigint_callback_handler(int signum) {
-	if (dev_dir_name) {
-		/* Disconnect the trigger - just write a dummy name. */
-		write_sysfs_string("trigger/current_trigger", dev_dir_name, "NULL");
-		/* Stop the buffer */
-		write_sysfs_int("buffer/enable", dev_dir_name, 0);
-	}
-	exit(signum);
-}
-
-static time_t last_sigusr_time = 0;
-static char* help = "orientation monitors the Yoga accelerometer and\n\
-rotates the screen and touchscreen to match\n\
-\n\
-Options:\n\
-  --help		Print this help message and exit\n\
-  --version		Print version information and exit\n\
-  --count=iterations	If >0 run for only this number of iterations [-1]\n\
-  --name=accel_name	Industrial IO accelerometer device name [als]\n\
-  --usleep=time		Polling sleep time in microseconds [1000000]\n\
-  --debug=level		Print out debugging information (-1 through 4) [0]\n\
-  --max-input=value Max input value of sensor [1400]\n\
-  --max-output=value Max output defined /sys/class/backlight/intel_backlight/max_brightness [937]\n";
-static char* version = "light version 0.3\n";
-
-int main(int argc, char **argv) {
-	char *trigger_name = NULL, *device_name = "als";
-	int dev_num;
-	int num_channels;
-	struct iio_channel_info *channels;
-	int ret, c, i, iterations = -1;
-	char * dummy;
-	static int version_flag = 0, help_flag = 0;
-
-	unsigned int sleeping = 1000000;
-	int orientation = 0;
-
-	static struct option long_options[] = {
-		{"version", no_argument, &version_flag, 1},
-		{"help", no_argument, &help_flag, 1},
-		{"count", required_argument, 0, 'c'},
-		{"name", required_argument, 0, 'n'},
-		{"touchscreen", required_argument, 0, 't'},
-		{"usleep", required_argument, 0, 'u'},
-		{"debug", required_argument, 0, 'd'},
-		{"max-input", required_argument, 0, 'i'},
-		{"max-output", required_argument, 0, 'o'},
-		{0, 0, 0, 0}
-	};
-	int option_index = 0;
-
-	while ((c = getopt_long(argc, argv, "c:n:d:t:u:", long_options, &option_index))
-			!= -1) {
-		switch (c) {
-			case 0:
-				break;
-			case 'c':
-				iterations = strtol(optarg, &dummy, 10);
-				break;
-			case 'n':
-				device_name = optarg;
-				break;
-			case 'd':
-				debug_level = strtol(optarg, &dummy, 10);
-				break;
-			case 'u':
-				sleeping = strtol(optarg, &dummy, 10);
-				break;
-			case 'i':
-				max_input = strtol(optarg, &dummy, 10);
-				break;
-			case 'o':
-				max_output = strtol(optarg, &dummy, 10);
-				break;
-			case '?':
-				printf("Invalid flag\n");
-				return -1;
-		}
-	}
-
-	if (version_flag) {
-		printf("%s", version);
-		exit(0);
-	}
-	if (help_flag) {
-		printf("%s", help);
-		exit(0);
-	}
-
-	signal(SIGINT, sigint_callback_handler);
-	signal(SIGHUP, sigint_callback_handler);
-
-	/* Find the device requested */
-	dev_num = find_type_by_name(device_name, "iio:device");
-	if (dev_num < 0) {
-		printf("Failed to find the %s sensor\n", device_name);
-		ret = -ENODEV;
-		goto error_ret;
-	}
-	if (debug_level > -1) printf("iio device number being used is %d\n", dev_num);
-
-	/* enable the sensors in the device */
-	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	enable_sensors(dev_dir_name);
-
-	if (trigger_name == NULL) {
-		/* Build the trigger name. */
-		ret = asprintf(&trigger_name,
-				"%s-dev%d", device_name, dev_num);
-		if (ret < 0) {
-			ret = -ENOMEM;
-			goto error_ret;
-		}
-	}
-	/* Verify the trigger exists */
-	ret = find_type_by_name(trigger_name, "trigger");
-	if (ret < 0) {
-		printf("Failed to find the trigger %s\n", trigger_name);
-		ret = -ENODEV;
-		goto error_free_triggername;
-	}
-	if (debug_level > -1) printf("iio trigger number being used is %d\n", ret);
-
-	/* Parse the files in scan_elements to identify what channels are present */
-	ret = build_channel_array(dev_dir_name, &channels, &num_channels);
-	if (ret) {
-		printf("Problem reading scan element information\n");
-		printf("diag %s\n", dev_dir_name);
-		goto error_free_triggername;
-	}
-
-	for (i = 0; i != iterations; i++) {
-		find_orientation(dev_num, dev_dir_name, trigger_name, channels, num_channels);
-		usleep(sleeping);
-	}
-
-	return 0;
-
-error_free_triggername:
-	free(trigger_name);
-error_free_dev_dir_name:
-	free(dev_dir_name);
 error_ret:
 	return ret;
 }

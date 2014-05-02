@@ -8,11 +8,15 @@
  */
 
 /* Made up value to limit allocation sizes */
+#ifndef IIO_UTILS_H
+#define IIO_UTILS_H
+
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <errno.h>
 
 #define IIO_MAX_NAME_LENGTH 30
 
@@ -661,3 +665,5 @@ error_free:
 	free(temp);
 	return ret;
 }
+
+#endif

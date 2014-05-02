@@ -19,6 +19,8 @@ orientation: orientation.c iio_utils.h
 hinge: hinge.c iio_utils.h
 	cc hinge.c -o hinge
 
+light: light.c
+	cc `pkg-config --cflags glib-2.0 gtk+-2.0` -lglib-2.0 -o light light.c
 install:	orientation
 	@echo Making the control files writable by you and putting the command in /usr/bin
 	@echo NOTE: In most cases you also need to install drivers from the drivers directory
