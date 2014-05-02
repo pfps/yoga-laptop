@@ -98,5 +98,5 @@ int size_from_channelarray(struct iio_channel_info *channels, int num_channels) 
 }
 #endif
 
-#endif	/* PRINT_UTILS_H */
+#endif	/* SENSORS_H */
 

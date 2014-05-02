@@ -35,6 +35,9 @@ extern "C" {
 #include "iio_utils.h"
 #include "print_utils.h"
 #include "sensors.h"
+#include "config.h"
+#include "device_info.h"
+
 
 #ifdef	__cplusplus
 }

@@ -38,13 +38,13 @@
  *  location offsets.
  * @num_channels:       number of channels
  **/
-void process_scan(char *data, Device_info info, Config config) {
+int process_scan(SensorData data, Device_info info, Config config) {
 	if (info.channels_count != 1 || info.channels[0].bytes != 4) {
 		return;
 	}
 	struct iio_channel_info channel = info.channels[0];
 	if (channel.is_signed) {
-		int32_t val = *(int32_t *) (data + channel.location);
+		int32_t val = *(int32_t *) (data.data + channel.location);
 		val = val >> channel.shift;
 		if (channel.bits_used < 32) val &= ((uint32_t) 1 << channel.bits_used) - 1;
 		val = (int32_t) (val << (32 - channel.bits_used)) >> (32 - channel.bits_used);
@@ -59,6 +59,7 @@ void process_scan(char *data, Device_info info, Config config) {
 			fclose(fp);
 		}
 	}
+	return 0;
 }
 
 static char *dev_dir_name;

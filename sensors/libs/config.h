@@ -29,6 +29,9 @@ extern "C" {
 		// Device name
 		char* device_name;
 
+		/* Orientation config*/
+		char *or_touchScreenName;
+
 		/* Light config */
 		// Top value used for scaling
 		unsigned int light_ambient_max;
@@ -39,6 +42,9 @@ extern "C" {
 		1000000,	// 1 second
 		-1,			// infinite iterations
 		"",
+
+		// Orientation
+		"ELAN Touchscreen",
 
 		// Light
 		1400,

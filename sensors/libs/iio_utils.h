@@ -653,15 +653,20 @@ error_free:
 	return ret;
 }
 
+typedef struct SensorData_s {
+	ssize_t read_size;
+	int scan_size;
+	char* data;
+} SensorData;
+
 int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
-		void (*callback)(char*, Device_info, Config), Config config) {
+		int (*callback)(SensorData, Device_info, Config), Config config) {
 	char * buffer_access;
-	int ret, scan_size, dev_num = info->device_id, num_channels = info->channels_count;
+	int ret, dev_num = info->device_id, num_channels = info->channels_count;
 	struct iio_channel_info *channels = info->channels;
+	SensorData data;
 
 	int fp, buf_len = 127;
-	char * data;
-	ssize_t read_size;
 
 	/* Set the device trigger to be the data ready trigger */
 	ret = write_sysfs_string_and_verify("trigger/current_trigger",
@@ -680,9 +685,9 @@ int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
 		printf("Unable to enable the buffer %d\n", ret);
 		goto error_ret;
 	}
-	scan_size = size_from_channelarray(channels, num_channels);
-	data = malloc(scan_size * buf_len);
-	if (!data) {
+	data.scan_size = size_from_channelarray(channels, num_channels);
+	data.data = malloc(data.scan_size * buf_len);
+	if (!data.data) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -705,17 +710,17 @@ int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
 	if (config.debug_level > 3) printf("Polling the data\n");
 	poll(&pfd, 1, -1);
 	if (config.debug_level > 3) printf("Reading the data\n");
-	read_size = read(fp, data, buf_len * scan_size);
+	data.read_size = read(fp, data.data, buf_len * data.scan_size);
 	if (config.debug_level > 3) printf("Read the data\n");
-	if (read_size == -EAGAIN) {
+	if (data.read_size == -EAGAIN) {
 		printf("nothing available\n");
 	} else {
-		callback(data, *info, config);
+		ret = callback(data, *info, config);
 	}
 
 	/* Stop the buffer */
-	ret = write_sysfs_int("buffer/enable", dev_dir_name, 0);
-	if (ret < 0)
+	int bret = write_sysfs_int("buffer/enable", dev_dir_name, 0);
+	if (bret < 0)
 		goto error_close_buffer_access;
 
 	/* Disconnect the trigger - just write a dummy name. */
@@ -726,7 +731,7 @@ error_close_buffer_access:
 error_free_buffer_access:
 	free(buffer_access);
 error_free_data:
-	free(data);
+	free(data.data);
 error_ret:
 	return ret;
 }
