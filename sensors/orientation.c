@@ -247,6 +247,8 @@ int main(int argc, char **argv) {
 
 	// Update default settings
 	config.device_name = "accel_3d";
+	touchScreenName = config.or_touchScreenName;
+	debug_level = config.debug_level;
 
 	/* Arguments definition */
 	static int version_flag = 0, help_flag = 0;
