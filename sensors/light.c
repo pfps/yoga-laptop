@@ -33,9 +33,8 @@
 void process_scan(char *data,
 		struct iio_channel_info *channels,
 		int num_channels, Config config);
-int prepare_output(int dev_num, char * dev_dir_name, char * trigger_name,
-		struct iio_channel_info *channels, int num_channels,
-		void (*callback)(char*, struct iio_channel_info*, int, Config), Config) ;
+int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
+		void (*callback)(char*, struct iio_channel_info*, int, Config), Config);
 
 static char *dev_dir_name;
 
@@ -53,8 +52,6 @@ int main(int argc, char **argv) {
 	/* Configuration variables */
 	char *trigger_name = NULL, *config_file = "conf/light.ini";
 	Config config = Config_default;
-	GKeyFile* gfile;
-	GError* gerror;
 	static int version_flag = 0, help_flag = 0;
 
 	// Update default settings
@@ -74,7 +71,7 @@ int main(int argc, char **argv) {
 	  --debug=<level>			Print out debugging information (-1 through 4) [%d]\n\
 	  --ambient-max=<integer>	Minimum ambient light required for full backlight [%u]\n\
 	  --backlight-max=<integer>	Max output defined /sys/class/backlight/intel_backlight/max_brightness [%u]\n",
-			config.iterations, (char*)config.device_name, config.poll_timeout, config.debug_level,
+			config.iterations, (char*) config.device_name, config.poll_timeout, config.debug_level,
 			config.light_ambient_max, config.light_backlight_max);
 
 	/* Device info */
@@ -83,13 +80,6 @@ int main(int argc, char **argv) {
 	/* Other variables */
 	int ret, c, i;
 	char * dummy;
-
-
-	/*if(g_key_file_load_from_file(gfile, config_file, G_KEY_FILE_NONE, &gerror) != TRUE) {
-		fprintf(stderr, "Config file not found, loading default values (%s)...\n", gerror->message);
-	} else {
-		config.device_name = g_key_file_get_string(gfile, "Device", "Name", &gerror);
-	}*/
 
 	static struct option long_options[] = {
 		{"version", no_argument, &version_flag, 1},
@@ -191,7 +181,7 @@ int main(int argc, char **argv) {
 	}
 
 	for (i = 0; i != config.iterations; i++) {
-		prepare_output(info.device_id, dev_dir_name, trigger_name, info.channels, info.channels_count, &process_scan, config);
+		prepare_output(&info, dev_dir_name, trigger_name, &process_scan, config);
 		usleep(config.poll_timeout);
 	}
 
@@ -276,11 +266,12 @@ void process_scan(char *data,
 	}
 	printf("\n");
 }
-int prepare_output(int dev_num, char * dev_dir_name, char * trigger_name,
-		struct iio_channel_info *channels, int num_channels,
+
+int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
 		void (*callback)(char*, struct iio_channel_info*, int, Config), Config config) {
 	char * buffer_access;
-	int ret, scan_size;
+	int ret, scan_size, dev_num = info->device_id, num_channels = info->channels_count;
+	struct iio_channel_info *channels = info->channels;
 
 	int fp, buf_len = 127;
 	int i;
