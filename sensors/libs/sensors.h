@@ -1,3 +1,17 @@
+/*
+ * File:   print_utils.h
+ * Author: buri
+ *
+ * Created on 2. květen 2014, 11:49
+ */
+
+#ifndef SENSORS_H
+#define	SENSORS_H
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 #include <errno.h>
 #include <stdbool.h>
 #include "iio_utils.h"
@@ -78,3 +92,11 @@ int size_from_channelarray(struct iio_channel_info *channels, int num_channels) 
 	}
 	return bytes;
 }
+
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif	/* PRINT_UTILS_H */
+

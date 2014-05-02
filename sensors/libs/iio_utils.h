@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <errno.h>
+#include "device_info.h"
+#include "config.h"
 
 #define IIO_MAX_NAME_LENGTH 30
 
@@ -32,8 +34,7 @@ const char *iio_debugfs_dir = "/sys/kernel/debug/iio/";
  * @generic_name: the output generic channel name
  **/
 inline int iioutils_break_up_name(const char *full_name,
-				  char **generic_name)
-{
+		char **generic_name) {
 	char *current;
 	char *w, *r;
 	char *working;
@@ -95,15 +96,14 @@ struct iio_channel_info {
  * @generic_name: the channel type name
  **/
 inline int iioutils_get_type(unsigned *is_signed,
-			     unsigned *bytes,
-			     unsigned *bits_used,
-			     unsigned *shift,
-			     uint64_t *mask,
-			     unsigned *be,
-			     const char *device_dir,
-			     const char *name,
-			     const char *generic_name)
-{
+		unsigned *bytes,
+		unsigned *bits_used,
+		unsigned *shift,
+		uint64_t *mask,
+		unsigned *be,
+		const char *device_dir,
+		const char *name,
+		const char *generic_name) {
 	FILE *sysfsfp;
 	int ret;
 	DIR *dp;
@@ -139,9 +139,9 @@ inline int iioutils_get_type(unsigned *is_signed,
 		 * a specific one?
 		 */
 		if ((strcmp(builtname, ent->d_name) == 0) ||
-		    (strcmp(builtname_generic, ent->d_name) == 0)) {
+				(strcmp(builtname_generic, ent->d_name) == 0)) {
 			ret = asprintf(&filename,
-				       "%s/%s", scan_el_dir, ent->d_name);
+					"%s/%s", scan_el_dir, ent->d_name);
 			if (ret < 0) {
 				ret = -ENOMEM;
 				goto error_closedir;
@@ -154,11 +154,11 @@ inline int iioutils_get_type(unsigned *is_signed,
 			}
 
 			ret = fscanf(sysfsfp,
-				     "%ce:%c%u/%u>>%u",
-				     &endianchar,
-				     &signchar,
-				     bits_used,
-				     &padint, shift);
+					"%ce:%c%u/%u>>%u",
+					&endianchar,
+					&signchar,
+					bits_used,
+					&padint, shift);
 			if (ret < 0) {
 				printf("failed to pass scan type description\n");
 				ret = -errno;
@@ -199,11 +199,10 @@ error_ret:
 }
 
 inline int iioutils_get_param_float(float *output,
-				    const char *param_name,
-				    const char *device_dir,
-				    const char *name,
-				    const char *generic_name)
-{
+		const char *param_name,
+		const char *device_dir,
+		const char *name,
+		const char *generic_name) {
 	FILE *sysfsfp;
 	int ret;
 	DIR *dp;
@@ -217,7 +216,7 @@ inline int iioutils_get_param_float(float *output,
 		goto error_ret;
 	}
 	ret = asprintf(&builtname_generic,
-		       "%s_%s", generic_name, param_name);
+			"%s_%s", generic_name, param_name);
 	if (ret < 0) {
 		ret = -ENOMEM;
 		goto error_free_builtname;
@@ -229,9 +228,9 @@ inline int iioutils_get_param_float(float *output,
 	}
 	while (ent = readdir(dp), ent != NULL)
 		if ((strcmp(builtname, ent->d_name) == 0) ||
-		    (strcmp(builtname_generic, ent->d_name) == 0)) {
+				(strcmp(builtname_generic, ent->d_name) == 0)) {
 			ret = asprintf(&filename,
-				       "%s/%s", device_dir, ent->d_name);
+					"%s/%s", device_dir, ent->d_name);
 			if (ret < 0) {
 				ret = -ENOMEM;
 				goto error_closedir;
@@ -263,15 +262,14 @@ error_ret:
  **/
 
 inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
-					 int cnt)
-{
+		int cnt) {
 
 	struct iio_channel_info temp;
 	int x, y;
 
 	for (x = 0; x < cnt; x++)
 		for (y = 0; y < (cnt - 1); y++)
-			if ((*ci_array)[y].index > (*ci_array)[y+1].index) {
+			if ((*ci_array)[y].index > (*ci_array)[y + 1].index) {
 				temp = (*ci_array)[y + 1];
 				(*ci_array)[y + 1] = (*ci_array)[y];
 				(*ci_array)[y] = temp;
@@ -284,9 +282,8 @@ inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
  * @
  **/
 inline int build_channel_array(const char *device_dir,
-			      struct iio_channel_info **ci_array,
-			      int *counter)
-{
+		struct iio_channel_info **ci_array,
+		int *counter) {
 	DIR *dp;
 	FILE *sysfsfp;
 	int count, i;
@@ -310,9 +307,9 @@ inline int build_channel_array(const char *device_dir,
 	}
 	while (ent = readdir(dp), ent != NULL)
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
-			   "_en") == 0) {
+				"_en") == 0) {
 			ret = asprintf(&filename,
-				       "%s/%s", scan_el_dir, ent->d_name);
+					"%s/%s", scan_el_dir, ent->d_name);
 			if (ret < 0) {
 				ret = -ENOMEM;
 				goto error_close_dir;
@@ -324,12 +321,12 @@ inline int build_channel_array(const char *device_dir,
 				goto error_close_dir;
 			}
 			fscanf(sysfsfp, "%d", &ret);
-			if /* pfps (ret == 1) */ (ret )
+			if /* pfps (ret == 1) */ (ret)
 				(*counter)++;
 			fclose(sysfsfp);
 			free(filename);
 		}
-	*ci_array = malloc(sizeof(**ci_array) * (*counter));
+	*ci_array = malloc(sizeof (**ci_array) * (*counter));
 	if (*ci_array == NULL) {
 		ret = -ENOMEM;
 		goto error_close_dir;
@@ -338,10 +335,10 @@ inline int build_channel_array(const char *device_dir,
 	count = 0;
 	while (ent = readdir(dp), ent != NULL) {
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
-			   "_en") == 0) {
+				"_en") == 0) {
 			current = &(*ci_array)[count++];
 			ret = asprintf(&filename,
-				       "%s/%s", scan_el_dir, ent->d_name);
+					"%s/%s", scan_el_dir, ent->d_name);
 			if (ret < 0) {
 				ret = -ENOMEM;
 				/* decrement count to avoid freeing name */
@@ -366,8 +363,8 @@ inline int build_channel_array(const char *device_dir,
 			current->scale = 1.0;
 			current->offset = 0;
 			current->name = strndup(ent->d_name,
-						strlen(ent->d_name) -
-						strlen("_en"));
+					strlen(ent->d_name) -
+					strlen("_en"));
 			if (current->name == NULL) {
 				free(filename);
 				ret = -ENOMEM;
@@ -375,15 +372,15 @@ inline int build_channel_array(const char *device_dir,
 			}
 			/* Get the generic and specific name elements */
 			ret = iioutils_break_up_name(current->name,
-						     &current->generic_name);
+					&current->generic_name);
 			if (ret) {
 				free(filename);
 				goto error_cleanup_array;
 			}
 			ret = asprintf(&filename,
-				       "%s/%s_index",
-				       scan_el_dir,
-				       current->name);
+					"%s/%s_index",
+					scan_el_dir,
+					current->name);
 			if (ret < 0) {
 				free(filename);
 				ret = -ENOMEM;
@@ -395,28 +392,28 @@ inline int build_channel_array(const char *device_dir,
 			free(filename);
 			/* Find the scale */
 			ret = iioutils_get_param_float(&current->scale,
-						       "scale",
-						       device_dir,
-						       current->name,
-						       current->generic_name);
+					"scale",
+					device_dir,
+					current->name,
+					current->generic_name);
 			if (ret < 0)
 				goto error_cleanup_array;
 			ret = iioutils_get_param_float(&current->offset,
-						       "offset",
-						       device_dir,
-						       current->name,
-						       current->generic_name);
+					"offset",
+					device_dir,
+					current->name,
+					current->generic_name);
 			if (ret < 0)
 				goto error_cleanup_array;
 			ret = iioutils_get_type(&current->is_signed,
-						&current->bytes,
-						&current->bits_used,
-						&current->shift,
-						&current->mask,
-						&current->be,
-						device_dir,
-						current->name,
-						current->generic_name);
+					&current->bytes,
+					&current->bits_used,
+					&current->shift,
+					&current->mask,
+					&current->be,
+					device_dir,
+					current->name,
+					current->generic_name);
 		}
 	}
 
@@ -427,7 +424,7 @@ inline int build_channel_array(const char *device_dir,
 	return 0;
 
 error_cleanup_array:
-	for (i = count - 1;  i >= 0; i--)
+	for (i = count - 1; i >= 0; i--)
 		free((*ci_array)[i].name);
 	free(*ci_array);
 error_close_dir:
@@ -445,8 +442,7 @@ error_ret:
  *
  * Typical types this is used for are device and trigger.
  **/
-static inline int find_type_by_name(const char *name, const char *type)
-{
+static inline int find_type_by_name(const char *name, const char *type) {
 	const struct dirent *ent;
 	int number, numstrlen;
 
@@ -463,12 +459,12 @@ static inline int find_type_by_name(const char *name, const char *type)
 
 	while (ent = readdir(dp), ent != NULL) {
 		if (strcmp(ent->d_name, ".") != 0 &&
-			strcmp(ent->d_name, "..") != 0 &&
-			strlen(ent->d_name) > strlen(type) &&
-			strncmp(ent->d_name, type, strlen(type)) == 0) {
+				strcmp(ent->d_name, "..") != 0 &&
+				strlen(ent->d_name) > strlen(type) &&
+				strncmp(ent->d_name, type, strlen(type)) == 0) {
 			numstrlen = sscanf(ent->d_name + strlen(type),
-					   "%d",
-					   &number);
+					"%d",
+					&number);
 			/* verify the next character is not a colon */
 			if (strncmp(ent->d_name + strlen(type) + numstrlen,
 					":",
@@ -482,9 +478,9 @@ static inline int find_type_by_name(const char *name, const char *type)
 					return -ENOMEM;
 				}
 				sprintf(filename, "%s%s%d/name",
-					iio_dir,
-					type,
-					number);
+						iio_dir,
+						type,
+						number);
 				nameFile = fopen(filename, "r");
 				if (!nameFile) {
 					free(filename);
@@ -504,8 +500,7 @@ static inline int find_type_by_name(const char *name, const char *type)
 	return -ENODEV;
 }
 
-int _write_sysfs_int(const char *filename, const char *basedir, int val, int verify, int type, int val2)
-{
+int _write_sysfs_int(const char *filename, const char *basedir, int val, int verify, int type, int val2) {
 	int ret = 0;
 	FILE *sysfsfp;
 	int test;
@@ -535,9 +530,9 @@ int _write_sysfs_int(const char *filename, const char *basedir, int val, int ver
 		fscanf(sysfsfp, "%d", &test);
 		if (test != val) {
 			syslog(LOG_ERR, "Possible failure in int write %d to %s%s\n",
-				val,
-				basedir,
-				filename);
+					val,
+					basedir,
+					filename);
 			ret = -1;
 		}
 		fclose(sysfsfp);
@@ -547,25 +542,21 @@ error_free:
 	return ret;
 }
 
-int write_sysfs_int(const char *filename, const char *basedir, int val)
-{
+int write_sysfs_int(const char *filename, const char *basedir, int val) {
 	return _write_sysfs_int(filename, basedir, val, 0, 0, 0);
 }
 
-int write_sysfs_int_and_verify(char *filename, char *basedir, int val)
-{
+int write_sysfs_int_and_verify(char *filename, char *basedir, int val) {
 	return _write_sysfs_int(filename, basedir, val, 1, 0, 0);
 }
 
-int write_sysfs_int2(char *filename, char *basedir, int val, int val2)
-{
-	return _write_sysfs_int(filename, basedir, val, 0, 1 , val2);
+int write_sysfs_int2(char *filename, char *basedir, int val, int val2) {
+	return _write_sysfs_int(filename, basedir, val, 0, 1, val2);
 }
 
-int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
-{
+int _write_sysfs_string(char *filename, char *basedir, char *val, int verify) {
 	int ret = 0;
-	FILE  *sysfsfp;
+	FILE *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 	if (temp == NULL) {
 		syslog(LOG_ERR, "Memory allocation failed\n");
@@ -590,12 +581,12 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 		fscanf(sysfsfp, "%s", temp);
 		if (strcmp(temp, val) != 0) {
 			syslog(LOG_ERR, "Possible failure in string write of %s "
-				"Should be %s "
-				"written to %s\\%s\n",
-				temp,
-				val,
-				basedir,
-				filename);
+					"Should be %s "
+					"written to %s\\%s\n",
+					temp,
+					val,
+					basedir,
+					filename);
 			ret = -1;
 		}
 		fclose(sysfsfp);
@@ -612,20 +603,17 @@ error_free:
  * @basedir: the sysfs directory in which the file is to be found
  * @val: the string to write
  **/
-int write_sysfs_string_and_verify(char *filename, char *basedir, char *val)
-{
+int write_sysfs_string_and_verify(char *filename, char *basedir, char *val) {
 	return _write_sysfs_string(filename, basedir, val, 1);
 }
 
-int write_sysfs_string(char *filename, char *basedir, char *val)
-{
+int write_sysfs_string(char *filename, char *basedir, char *val) {
 	return _write_sysfs_string(filename, basedir, val, 0);
 }
 
-int read_sysfs_posint(char *filename, char *basedir)
-{
+int read_sysfs_posint(char *filename, char *basedir) {
 	int ret;
-	FILE  *sysfsfp;
+	FILE *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 	if (temp == NULL) {
 		syslog(LOG_ERR, "Memory allocation failed");
@@ -644,10 +632,9 @@ error_free:
 	return ret;
 }
 
-int read_sysfs_float(char *filename, char *basedir, float *val)
-{
+int read_sysfs_float(char *filename, char *basedir, float *val) {
 	float ret = 0;
-	FILE  *sysfsfp;
+	FILE *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
 	if (temp == NULL) {
 		syslog(LOG_ERR, "Memory allocation failed");
@@ -663,6 +650,84 @@ int read_sysfs_float(char *filename, char *basedir, float *val)
 	fclose(sysfsfp);
 error_free:
 	free(temp);
+	return ret;
+}
+
+int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
+		void (*callback)(char*, Device_info, Config), Config config) {
+	char * buffer_access;
+	int ret, scan_size, dev_num = info->device_id, num_channels = info->channels_count;
+	struct iio_channel_info *channels = info->channels;
+
+	int fp, buf_len = 127;
+	char * data;
+	ssize_t read_size;
+
+	/* Set the device trigger to be the data ready trigger */
+	ret = write_sysfs_string_and_verify("trigger/current_trigger",
+			dev_dir_name, trigger_name);
+	if (ret < 0) {
+		printf("Failed to write current_trigger file %s\n", strerror(-ret));
+		goto error_ret;
+	}
+
+	/*	Setup ring buffer parameters */
+	ret = write_sysfs_int("buffer/length", dev_dir_name, 128);
+	if (ret < 0) goto error_ret;
+	/* Enable the buffer */
+	ret = write_sysfs_int_and_verify("buffer/enable", dev_dir_name, 1);
+	if (ret < 0) {
+		printf("Unable to enable the buffer %d\n", ret);
+		goto error_ret;
+	}
+	scan_size = size_from_channelarray(channels, num_channels);
+	data = malloc(scan_size * buf_len);
+	if (!data) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+
+	ret = asprintf(&buffer_access, "/dev/iio:device%d", dev_num);
+	if (ret < 0) {
+		ret = -ENOMEM;
+		goto error_free_data;
+	}
+	/* Attempt to open non blocking to access dev */
+	fp = open(buffer_access, O_RDONLY | O_NONBLOCK);
+	if (fp == -1) { /* If it isn't there make the node */
+		printf("Failed to open %s : %s\n", buffer_access, strerror(errno));
+		ret = -errno;
+		goto error_free_buffer_access;
+	}
+
+	/* Actually read the data */
+	struct pollfd pfd = {.fd = fp, .events = POLLIN,};
+	if (config.debug_level > 3) printf("Polling the data\n");
+	poll(&pfd, 1, -1);
+	if (config.debug_level > 3) printf("Reading the data\n");
+	read_size = read(fp, data, buf_len * scan_size);
+	if (config.debug_level > 3) printf("Read the data\n");
+	if (read_size == -EAGAIN) {
+		printf("nothing available\n");
+	} else {
+		callback(data, *info, config);
+	}
+
+	/* Stop the buffer */
+	ret = write_sysfs_int("buffer/enable", dev_dir_name, 0);
+	if (ret < 0)
+		goto error_close_buffer_access;
+
+	/* Disconnect the trigger - just write a dummy name. */
+	write_sysfs_string("trigger/current_trigger", dev_dir_name, "NULL");
+
+error_close_buffer_access:
+	close(fp);
+error_free_buffer_access:
+	free(buffer_access);
+error_free_data:
+	free(data);
+error_ret:
 	return ret;
 }
 

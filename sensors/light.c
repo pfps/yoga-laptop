@@ -115,7 +115,6 @@ Options:\n\
 		{"help", no_argument, &help_flag, 1},
 		{"count", required_argument, 0, 'c'},
 		{"name", required_argument, 0, 'n'},
-		{"touchscreen", required_argument, 0, 't'},
 		{"usleep", required_argument, 0, 'u'},
 		{"debug", required_argument, 0, 'd'},
 		{"ambient-max", required_argument, 0, 'a'},
