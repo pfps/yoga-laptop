@@ -51,8 +51,13 @@ void process_scan(char *data, Device_info info, Config config) {
 		int backlight = limit_interval(1, config.light_backlight_max, val * config.light_backlight_max / config.light_ambient_max);
 		printf("Current backlight level: %d\n", backlight);
 		FILE* fp = fopen("/sys/class/backlight/intel_backlight/brightness", "w");
-		fprintf(fp, "%d", backlight);
-		fclose(fp);
+		if (fp) {
+			if(fprintf(fp, "%d", backlight) < 0) {
+				fprintf(stderr, "Failed to change brightness\n");
+				exit(EPERM);
+			}
+			fclose(fp);
+		}
 	}
 }
 
@@ -78,7 +83,7 @@ int main(int argc, char **argv) {
 	config.device_name = "als";
 	FILE* fp_backlight_max = fopen("/sys/class/backlight/intel_backlight/max_brightness", "r");
 	if (fp_backlight_max) {
-		if(!fscanf(fp_backlight_max, "%d", &config.light_backlight_max)) {
+		if (!fscanf(fp_backlight_max, "%d", &config.light_backlight_max)) {
 			fprintf(stderr, "Error reading max brightness, using defaults...\n");
 		}
 		fclose(fp_backlight_max);
@@ -213,7 +218,7 @@ Options:\n\
 		usleep(config.poll_timeout);
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 
 error_free_triggername:
 	free(trigger_name);
