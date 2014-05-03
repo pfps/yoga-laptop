@@ -21,6 +21,7 @@ hinge: hinge.c iio_utils.h
 
 light: light.c
 	cc `pkg-config --cflags glib-2.0 --libs glib-2.0` -o light light.c
+
 install:	orientation
 	@echo Making the control files writable by you and putting the command in /usr/bin
 	@echo NOTE: In most cases you also need to install drivers from the drivers directory
