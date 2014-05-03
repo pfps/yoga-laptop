@@ -26,88 +26,23 @@
 
 #define _GNU_SOURCE
 
-#include <unistd.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <sys/dir.h>
-#include <linux/types.h>
-#include <string.h>
-#include <poll.h>
-#include <endian.h>
-#include <getopt.h>
-#include <inttypes.h>
-#include <syslog.h> /*pfps*/
-#include <stdbool.h>
-#include <signal.h>
-#include <time.h>
-#include "iio_utils.h"
+#include "libs/common.h"
 
-#include <X11/extensions/Xrandr.h>
-
-
-static int debug_level = 0;
-static char *touchScreenName = "ELAN Touchscreen";
+static char* touchScreenName = "";
+static int debug_level = -1;
 static bool orientation_lock = false;
 static int screen_orientation = -1;
 static int previous_orientation = -1;
+static char *dev_dir_name;
+static time_t last_sigusr_time = 0;
 
-enum {
+
+typedef enum {
 	FLAT, TOP, RIGHT, BOTTOM, LEFT
-}; /* various orientations */
+} OrientationPositions; /* various orientations */
 
-int rotate_left_orientation(orientation) {
+int rotate_left_orientation(OrientationPositions orientation) {
 	return (LEFT == orientation) ? TOP : orientation + 1;
-}
-
-/**
- * size_from_channelarray() - calculate the storage size of a scan
- * @channels:           the channel info array
- * @num_channels:       number of channels
- *
- * Has the side effect of filling the channels[i].location values used
- * in processing the buffer output.
- **/
-int size_from_channelarray(struct iio_channel_info *channels, int num_channels) {
-	int bytes = 0;
-	int i = 0;
-	while (i < num_channels) {
-		if (bytes % channels[i].bytes == 0)
-			channels[i].location = bytes;
-		else
-			channels[i].location = bytes - bytes % channels[i].bytes
-				+ channels[i].bytes;
-		bytes = channels[i].location + channels[i].bytes;
-		i++;
-	}
-	return bytes;
-}
-
-void print2byte(int input, struct iio_channel_info *info) {
-	/* First swap if incorrect endian */
-	if (info->be)
-		input = be16toh((uint16_t) input);
-	else
-		input = le16toh((uint16_t) input);
-
-	/*
-	 * Shift before conversion to avoid sign extension
-	 * of left aligned data
-	 */
-	input = input >> info->shift;
-	if (info->is_signed) {
-		int16_t val = input;
-		val &= (1 << info->bits_used) - 1;
-		val = (int16_t) (val << (16 - info->bits_used)) >>
-				(16 - info->bits_used);
-		if (debug_level > 1) printf("SCALED %05f ", ((float) val + info->offset) * info->scale);
-	} else {
-		uint16_t val = input;
-		val &= (1 << info->bits_used) - 1;
-		if (debug_level > 1) printf("SCALED %05f ", ((float) val + info->offset) * info->scale);
-	}
 }
 
 /**
@@ -165,166 +100,40 @@ void process_scan_3(char *data, struct iio_channel_info *channels, int num_chann
 	process_scan_1(data, channels, num_channels, ch_name_3, ch_val_3, ch_present_3);
 }
 
-/**
- * enable_sensors: enable all the sensors in a device
- * @device_dir: the IIO device directory in sysfs
- * @
- **/
-static int enable_sensors(const char *device_dir) {
-	DIR *dp;
-	FILE *sysfsfp;
-	int i;
-	int ret;
-	const struct dirent *ent;
-	char *scan_el_dir;
-	char *filename;
-
-	ret = asprintf(&scan_el_dir, FORMAT_SCAN_ELEMENTS_DIR, device_dir);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	dp = opendir(scan_el_dir);
-	if (dp == NULL) {
-		ret = -errno;
-		goto error_free_name;
-	}
-	while (ent = readdir(dp), ent != NULL)
-		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
-				"_en") == 0) {
-			ret = asprintf(&filename,
-					"%s/%s", scan_el_dir, ent->d_name);
-			if (ret < 0) {
-				ret = -ENOMEM;
-				goto error_close_dir;
-			}
-			sysfsfp = fopen(filename, "r");
-			if (sysfsfp == NULL) {
-				ret = -errno;
-				free(filename);
-				goto error_close_dir;
-			}
-			fscanf(sysfsfp, "%d", &ret);
-			fclose(sysfsfp);
-			if (!ret)
-				write_sysfs_int(ent->d_name, scan_el_dir, 1);
-			free(filename);
-		}
-	ret = 0;
-error_close_dir:
-	closedir(dp);
-error_free_name:
-	free(scan_el_dir);
-error_ret:
-	return ret;
-}
-
-int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
-		struct iio_channel_info *channels, int num_channels) {
-	char * buffer_access;
-	int ret, scan_size;
-
-	int fp, buf_len = 127;
-	int i;
-	char * data;
-	ssize_t read_size;
-	int orientation;
-
+int process_scan(SensorData data, Device_info info, Config config) {
+	int orientation = FLAT, i;
 
 	int accel_x, accel_y, accel_z;
 	bool present_x, present_y, present_z;
 
-
-	/* Set the device trigger to be the data ready trigger */
-	ret = write_sysfs_string_and_verify("trigger/current_trigger",
-			dev_dir_name, trigger_name);
-	if (ret < 0) {
-		printf("Failed to write current_trigger file %s\n", strerror(-ret));
-		goto error_ret;
-	}
-
-	/* Setup ring buffer parameters */
-	ret = write_sysfs_int("buffer/length", dev_dir_name, 128);
-	if (ret < 0) goto error_ret;
-	/* Enable the buffer */
-	ret = write_sysfs_int_and_verify("buffer/enable", dev_dir_name, 1);
-	if (ret < 0) {
-		printf("Unable to enable the buffer %d\n", ret);
-		goto error_ret;
-	}
-	scan_size = size_from_channelarray(channels, num_channels);
-	data = malloc(scan_size * buf_len);
-	if (!data) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	ret = asprintf(&buffer_access, "/dev/iio:device%d", dev_num);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_free_data;
-	}
-	/* Attempt to open non blocking to access dev */
-	fp = open(buffer_access, O_RDONLY | O_NONBLOCK);
-	/*  printf("OPEN file %s\n",buffer_access); */
-	if (fp == -1) { /* If it isn't there make the node */
-		printf("Failed to open %s : %s\n", buffer_access, strerror(errno));
-		ret = -errno;
-		goto error_free_buffer_access;
-	}
-
-	/* Actually read the data */
-	/*  printf("Reading from %s\n",buffer_access); */
-	struct pollfd pfd = {.fd = fp, .events = POLLIN,};
-	if (debug_level > 3) printf("Polling the data\n");
-	poll(&pfd, 1, -1);
-	if (debug_level > 3) printf("Reading the data\n");
-	read_size = read(fp, data, buf_len * scan_size);
-	if (debug_level > 3) printf("Read the data\n");
-	if (read_size == -EAGAIN) {
-		printf("nothing available\n");
-	} else
-		for (i = 0; i < read_size / scan_size; i++) {
-			process_scan_3(data + scan_size*i, channels, num_channels,
-					"in_accel_x", &accel_x, &present_x,
-					"in_accel_y", &accel_y, &present_y,
-					"in_accel_z", &accel_z, &present_z);
-			/* Determine orientation */
-			int accel_x_abs = abs(accel_x);
-			int accel_y_abs = abs(accel_y);
-			int accel_z_abs = abs(accel_z);
-			if (accel_z_abs > 4 * accel_x_abs && accel_z_abs > 4 * accel_y_abs) {
-				orientation = FLAT;
-			} else if (3 * accel_y_abs > 2 * accel_x_abs) {
-				orientation = accel_y > 0 ? BOTTOM : TOP;
-			} else orientation = accel_x > 0 ? LEFT : RIGHT;
-			if (debug_level > 1) printf("Orientation %d: %5d %5d %5d\n",
-					orientation, accel_x, accel_y, accel_z);
+	for (i = 0; i < data.read_size / data.scan_size; i++) {
+		process_scan_3(data.data + data.scan_size*i, info.channels, info.channels_count,
+				"in_accel_x", &accel_x, &present_x,
+				"in_accel_y", &accel_y, &present_y,
+				"in_accel_z", &accel_z, &present_z);
+		/* Determine orientation */
+		int accel_x_abs = abs(accel_x);
+		int accel_y_abs = abs(accel_y);
+		int accel_z_abs = abs(accel_z);
+		printf("%u > %u && %u > %u\n", accel_z_abs, 4*accel_x_abs, accel_z_abs, 4*accel_y_abs);
+		if (accel_z_abs > 4 * accel_x_abs && accel_z_abs > 4 * accel_y_abs) {
+			printf("set FLAT\n");
+			orientation = FLAT;
+		} else if (3 * accel_y_abs > 2 * accel_x_abs) {
+			printf("set TOP/BOTTOM (%u, %u)\n", 3*accel_y_abs, 2*accel_x_abs);
+			orientation = accel_y > 0 ? BOTTOM : TOP;
+		} else {
+			orientation = accel_x > 0 ? LEFT : RIGHT;
+			printf("set LEFT/RIGHT\n");
 		}
-
-	/* Stop the buffer */
-	ret = write_sysfs_int("buffer/enable", dev_dir_name, 0);
-	if (ret < 0)
-		goto error_close_buffer_access;
-
-	/* Disconnect the trigger - just write a dummy name. */
-	write_sysfs_string("trigger/current_trigger", dev_dir_name, "NULL");
-
-	ret = orientation;
-
-error_close_buffer_access:
-	close(fp);
-	/*	printf("CLOSE fp %s\n",buffer_access); */
-error_free_buffer_access:
-	free(buffer_access);
-error_free_data:
-	free(data);
-error_ret:
-	return ret;
+		if (config.debug_level > 1) printf("Orientation %d, x:%5d, y:%5d, z:%5d\n",
+				orientation, accel_x, accel_y, accel_z);
+	}
+	return orientation;
 }
 
 /* symbolic orientation as used in xrandr */
-char * symbolic_orientation(orientation) {
+char * symbolic_orientation(OrientationPositions orientation) {
 	char * orient;
 	switch (orientation) {
 		case FLAT: orient = "flat";
@@ -341,7 +150,7 @@ char * symbolic_orientation(orientation) {
 	return orient;
 }
 
-void rotate_to(orient) {
+void rotate_to(OrientationPositions orient) {
 	char * xrandr = "/usr/bin/xrandr";
 	char * xinput = "/usr/bin/xinput";
 	char * tsnormal[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
@@ -381,8 +190,6 @@ void rotate_to(orient) {
 	}
 }
 
-static char *dev_dir_name;
-
 void sigint_callback_handler(int signum) {
 	if (dev_dir_name) {
 		/* Disconnect the trigger - just write a dummy name. */
@@ -392,8 +199,6 @@ void sigint_callback_handler(int signum) {
 	}
 	exit(signum);
 }
-
-static time_t last_sigusr_time = 0;
 
 void sigusr_callback_handler(int signum) {
 	int now = time(NULL), pid, status, bufflen;
@@ -434,35 +239,47 @@ void sigusr_callback_handler(int signum) {
 	}
 }
 
+int main(int argc, char **argv) {
+	/* Configuration variables */
+	Config config = Config_default;
+	char *trigger_name = NULL, *device_name = "accel_3d";
 
-static char* help = "orientation monitors the Yoga accelerometer and\n\
+
+	// Update default settings
+	config.device_name = "accel_3d";
+	touchScreenName = config.or_touchScreenName;
+	debug_level = config.debug_level;
+
+	/* Arguments definition */
+	static int version_flag = 0, help_flag = 0;
+	static char* version = "orientation version 0.3\n";
+	static char* help;
+	asprintf(&help, "orientation monitors the Yoga accelerometer and\n\
 rotates the screen and touchscreen to match\n\
 \n\
 Options:\n\
   --help		Print this help message and exit\n\
   --version		Print version information and exit\n\
-  --count=iterations	If >0 run for only this number of iterations [-1]\n\
-  --name=accel_name	Industrial IO accelerometer device name [accel_3d]\n\
-  --touchscreen=ts_name	TouchScreen name [ELAN Touchscreen]\n\
-  --usleep=time		Polling sleep time in microseconds [1000000]\n\
-  --debug=level		Print out debugging information (-1 through 4) [0]\n\
+  --count=iterations	If >0 run for only this number of iterations [%d]\n\
+  --name=accel_name	Industrial IO accelerometer device name [%s]\n\
+  --usleep=time		Polling sleep time in microseconds [%u]\n\
+  --debug=level		Print out debugging information (-1 through 4) [%d]\n\
+  --touchscreen=ts_name	TouchScreen name [%s]\n\
 \n\
 orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
 rotates the screen and two SIGUSR1 interrupts within a second or two by \n\
 rotating the screen clockwise and suspending rotations.\n\
 Use via something like\n\
-    pkill --signal SIGUSR1 --exact orientation\n";
+    pkill --signal SIGUSR1 --exact orientation\n",
+			config.iterations, config.device_name, config.poll_timeout, config.debug_level,
+			config.or_touchScreenName);
 
-static char* version = "orientation version 0.2\n";
+	/* Device info */
+	Device_info info;
 
-int main(int argc, char **argv) {
-	char *trigger_name = NULL, *device_name = "accel_3d";
-	int dev_num;
-	int num_channels;
-	struct iio_channel_info *channels;
-	int ret, c, i, iterations = -1;
+	/* Other variables */
+	int ret, c, i;
 	char * dummy;
-	static int version_flag = 0, help_flag = 0;
 
 	unsigned int sleeping = 1000000;
 	int orientation = 0;
@@ -485,19 +302,21 @@ int main(int argc, char **argv) {
 			case 0:
 				break;
 			case 'c':
-				iterations = strtol(optarg, &dummy, 10);
+				config.iterations = strtol(optarg, &dummy, 10);
 				break;
 			case 'n':
-				device_name = optarg;
+				config.device_name = optarg;
 				break;
 			case 't':
+				config.or_touchScreenName = optarg;
 				touchScreenName = optarg;
 				break;
 			case 'd':
-				debug_level = strtol(optarg, &dummy, 10);
+				config.debug_level = strtol(optarg, &dummy, 10);
+				debug_level = config.debug_level;
 				break;
 			case 'u':
-				sleeping = strtol(optarg, &dummy, 10);
+				config.poll_timeout = strtol(optarg, &dummy, 10);
 				break;
 			case '?':
 				printf("Invalid flag\n");
@@ -506,12 +325,12 @@ int main(int argc, char **argv) {
 	}
 
 	if (version_flag) {
-		printf(version);
-		exit(0);
+		printf("%s", version);
+		exit(EXIT_SUCCESS);
 	}
 	if (help_flag) {
-		printf(help);
-		exit(0);
+		printf("%s", help);
+		exit(EXIT_SUCCESS);
 	}
 
 	signal(SIGINT, sigint_callback_handler);
@@ -519,16 +338,16 @@ int main(int argc, char **argv) {
 	signal(SIGUSR1, sigusr_callback_handler);
 
 	/* Find the device requested */
-	dev_num = find_type_by_name(device_name, "iio:device");
-	if (dev_num < 0) {
+	info.device_id = find_type_by_name(device_name, "iio:device");
+	if (info.device_id < 0) {
 		printf("Failed to find the %s sensor\n", device_name);
 		ret = -ENODEV;
 		goto error_ret;
 	}
-	if (debug_level > -1) printf("iio device number being used is %d\n", dev_num);
+	if (debug_level > -1) printf("iio device number being used is %d\n", info.device_id);
 
 	/* enable the sensors in the device */
-	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
+	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, info.device_id);
 	if (ret < 0) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -539,7 +358,7 @@ int main(int argc, char **argv) {
 	if (trigger_name == NULL) {
 		/* Build the trigger name. */
 		ret = asprintf(&trigger_name,
-				"%s-dev%d", device_name, dev_num);
+				"%s-dev%d", config.device_name, info.device_id);
 		if (ret < 0) {
 			ret = -ENOMEM;
 			goto error_ret;
@@ -555,24 +374,24 @@ int main(int argc, char **argv) {
 	if (debug_level > -1) printf("iio trigger number being used is %d\n", ret);
 
 	/* Parse the files in scan_elements to identify what channels are present */
-	ret = build_channel_array(dev_dir_name, &channels, &num_channels);
+	ret = build_channel_array(dev_dir_name, &(info.channels), &(info.channels_count));
 	if (ret) {
 		printf("Problem reading scan element information\n");
 		printf("diag %s\n", dev_dir_name);
 		goto error_free_triggername;
 	}
 
-	for (i = 0; i != iterations; i++) {
-		if (debug_level > 2) printf("Finding orientation %d\n", orientation);
-		if ((orientation = find_orientation(dev_num, dev_dir_name, trigger_name, channels, num_channels)) < 0) break;
-		if (debug_level > 2) printf("Found orientation %d %d %d\n", orientation, previous_orientation, screen_orientation);
-		if (debug_level > 0) printf("Orientation at %3.1f is %s\n", ((double) sleeping / 1000000.0) * i, symbolic_orientation(orientation));
+	for (i = 0; i != config.iterations; i++) {
+		if (config.debug_level > 2) printf("Finding orientation %d\n", orientation);
+		if ((orientation = prepare_output(&info, dev_dir_name, trigger_name, &process_scan, config)) < 0) break;
+		if (config.debug_level > 2) printf("Found orientation: or:%d, prev:%d, scr:%d, %d\n", orientation, previous_orientation, screen_orientation, FLAT);
+		if (config.debug_level > 0) printf("Orientation at %3.1f is %s\n", ((double) config.poll_timeout / 1000000.0) * i, symbolic_orientation(orientation));
 		if (previous_orientation == orientation /* only rotate when stable */ &&
 				orientation != screen_orientation && orientation != FLAT && !orientation_lock) {
 			rotate_to(orientation);
 		}
 		previous_orientation = orientation;
-		usleep(sleeping);
+		usleep(config.poll_timeout);
 	}
 
 	return 0;
