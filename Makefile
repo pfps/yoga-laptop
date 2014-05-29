@@ -8,6 +8,8 @@
 ##
 
 
+all:	sensors sensors-drivers
+
 ## Target: all
 driver:
 	cd yoga_laptop && $(MAKE) install
@@ -15,8 +17,6 @@ sensors:
 	cd sensors && $(MAKE) all
 sensors-drivers:
 	cd sensors/drivers && $(MAKE) default
-all:
-	$(MAKE) sensors sensors-drivers
 
 #install:
 #	cd yoga_laptop && $(MAKE) install
