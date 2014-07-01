@@ -38,19 +38,20 @@ be made.
 
 If you don't want to install new kernel modules you can instead:
 
-Ma/ Blacklist the hid-sensor modules so that the stock ones are not loaded at startup
+1/ Blacklist the hid-sensor modules so that the stock ones are not loaded at startup
 	/etc/modprobe.d/blacklist.conf should look like
 blacklist ideapad_laptop
-blacklist hid_sensor_hub
 blacklist hid_sensor_trigger
+blacklist hid_sensor_hub
+blacklist hid_sensor_als
 blacklist hid_sensor_accel_3d
 blacklist hid_sensor_gyro_3d
 blacklist hid_sensor_magn_3d
-blacklist hid_sensor_als
+blacklist hid_sensor_incl_3d
 
-Mb/ Reboot.  
+2/ Reboot.  
 
-Mc/Insert the modules, and their dependencies
+3/Insert the modules, and their dependencies
 	sudo modprobe industrialio
 	sudo insmod ./hid-sensor-hub.ko
 	sudo insmod ./hid-sensor-trigger.ko
@@ -58,13 +59,11 @@ Mc/Insert the modules, and their dependencies
 	sudo modprobe hid_sensor_iio_common
 	sudo insmod ./hid-sensor-accel-3d.ko
 
-Md/ Insert drivers for the other sensors, if desired
+4/ Insert drivers for the other sensors, if desired
+	sudo insmod ./hid-sensor-als.ko
 	sudo insmod ./hid-sensor-gyro-3d.ko
 	sudo insmod ./hid-sensor-magn-3d.ko
-	sudo insmod ./hid-sensor-als.ko
 	sudo insmod ./hid-sensor-incl-3d.ko
-	sudo insmod ./hid-sensor-custom.ko
-
 
 
 
@@ -124,7 +123,7 @@ HID-SENSOR-200041.0	Ambient Light		als
 HID-SENSOR-200073.0	Accelerometer 3D	accel_3d
 HID-SENSOR-200076.0	Gyrometer 3D  		gyro_3d
 HID-SENSOR-200083.0	Compass 3D		magn_3d
-HID-SENSOR-200086.0	Inclinometer 3D
+HID-SENSOR-200086.0	Inclinometer 3D		incl_3d
 HID-SENSOR-20008a.0	Device Orientation
 HID-SENSOR-2000e1.0	Custom
 HID-SENSOR-2000e2.0	Generic 

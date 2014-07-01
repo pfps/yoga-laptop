@@ -1,8 +1,11 @@
 include /etc/os-release 
 
 obj-m := hid-sensor-trigger.o hid-sensor-hub.o \
-	hid-sensor-als.o hid-sensor-accel-3d.o hid-sensor-gyro-3d.o hid-sensor-magn-3d.o hid-sensor-incl-3d.o \
-	hid-sensor-orient.o hid-sensor-custom.o hid-sensor-generic.o
+	hid-sensor-als.o hid-sensor-accel-3d.o hid-sensor-gyro-3d.o hid-sensor-magn-3d.o hid-sensor-incl-3d.o 
+
+# don't do these by default, as they are experimental and only acced-3d is used by the orientation code anyway
+# also only the above ones are installed by default
+exp-obj-m := hid-sensor-orient.o hid-sensor-custom.o hid-sensor-generic.o
 
 PWD := $(shell pwd)
 
@@ -19,12 +22,15 @@ default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 
 install:
-	install --owner=root --group=root --mode=644 hid-sensor-hub.ko $(DDIR)/hid
 	install --owner=root --group=root --mode=644 hid-sensor-trigger.ko $(DDIR)/iio/common/hid-sensors
-	install --owner=root --group=root --mode=644 hid-sensor-accel-3d.ko $(DDIR)/iio/accel
+	install --owner=root --group=root --mode=644 hid-sensor-hub.ko $(DDIR)/hid
 	install --owner=root --group=root --mode=644 hid-sensor-als.ko $(DDIR)/iio/light
+	install --owner=root --group=root --mode=644 hid-sensor-accel-3d.ko $(DDIR)/iio/accel
 	install --owner=root --group=root --mode=644 hid-sensor-gyro-3d.ko $(DDIR)/iio/gyro
 	install --owner=root --group=root --mode=644 hid-sensor-magn-3d.ko $(DDIR)/iio/magnetometer 
+	install --owner=root --group=root --mode=644 hid-sensor-incl-3d.ko $(DDIR)/iio/orientation
+
+
 
 clean:
 	rm -rf *~ *.o *.mod.c .hid-sensor* .tmp_versions modules.order Module.symvers
