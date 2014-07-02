@@ -13,7 +13,6 @@ generic_buffer: generic_buffer.c iio_utils.h
 	cc generic_buffer.c -o generic_buffer
 
 orientation: orientation.c iio_utils.h
-	@echo NOTE: In most cases you need to install drivers in the drivers directory for orientation to work
 	cc orientation.c -o orientation
 
 hinge: hinge.c iio_utils.h
@@ -31,5 +30,9 @@ permissions:
 
 install:	orientation permissions
 	install --owner=root --group=root --mode=755 orientation /usr/bin
+	install --owner=root --group=root --mode=755 light /usr/bin
 	@echo NOTE: In most cases you also need to install drivers from the drivers directory
+
+clean:
+	rm -f *.o orientation light generic_buffer
 

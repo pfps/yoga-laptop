@@ -1,22 +1,26 @@
 ## -*- Makefile -*-
-##
-## User: buri
-## Time: 2.5.2014 20:11:46
-## Makefile created by Oracle Solaris Studio.
-##
-## This file is generated automatically.
-##
+# Top-level makefile for yoga-laptop project
+# Just defers to the lower-level makefiles
 
+all:	ideapad-laptop sensors-drivers programs
 
-all:	sensors sensors-drivers
-
-## Target: all
-driver:
-	cd yoga_laptop && $(MAKE) install
-sensors:
+programs:
 	cd sensors && $(MAKE) all
+
+programs-install:
+	cd sensors && $(MAKE) install
+
 sensors-drivers:
 	cd sensors/drivers && $(MAKE) default
+
+sensors-drivers-install:
+	cd sensors/drivers && $(MAKE) install
+
+ideapad-laptop:
+	cd yoga_laptop && $(MAKE) default
+
+ideapad-laptop-install:
+	cd yoga_laptop && $(MAKE) install
 
 #install:
 #	cd yoga_laptop && $(MAKE) install

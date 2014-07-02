@@ -30,8 +30,6 @@ install:
 	install --owner=root --group=root --mode=644 hid-sensor-magn-3d.ko $(DDIR)/iio/magnetometer 
 	install --owner=root --group=root --mode=644 hid-sensor-incl-3d.ko $(DDIR)/iio/orientation
 
-
-
 clean:
 	rm -rf *~ *.o *.mod.c .hid-sensor* .tmp_versions modules.order Module.symvers
 
