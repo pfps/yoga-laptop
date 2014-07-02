@@ -115,16 +115,16 @@ int process_scan(SensorData data, Device_info info, Config config) {
 		int accel_x_abs = abs(accel_x);
 		int accel_y_abs = abs(accel_y);
 		int accel_z_abs = abs(accel_z);
-		printf("%u > %u && %u > %u\n", accel_z_abs, 4*accel_x_abs, accel_z_abs, 4*accel_y_abs);
+		/* printf("%u > %u && %u > %u\n", accel_z_abs, 4*accel_x_abs, accel_z_abs, 4*accel_y_abs); */
 		if (accel_z_abs > 4 * accel_x_abs && accel_z_abs > 4 * accel_y_abs) {
-			printf("set FLAT\n");
+		  /* printf("set FLAT\n"); */
 			orientation = FLAT;
 		} else if (3 * accel_y_abs > 2 * accel_x_abs) {
-			printf("set TOP/BOTTOM (%u, %u)\n", 3*accel_y_abs, 2*accel_x_abs);
+		  /* printf("set TOP/BOTTOM (%u, %u)\n", 3*accel_y_abs, 2*accel_x_abs); */
 			orientation = accel_y > 0 ? BOTTOM : TOP;
 		} else {
 			orientation = accel_x > 0 ? LEFT : RIGHT;
-			printf("set LEFT/RIGHT\n");
+			/* printf("set LEFT/RIGHT\n"); */
 		}
 		if (config.debug_level > 1) printf("Orientation %d, x:%5d, y:%5d, z:%5d\n",
 				orientation, accel_x, accel_y, accel_z);
