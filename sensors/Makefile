@@ -35,4 +35,3 @@ install:	orientation permissions
 
 clean:
 	rm -f *.o orientation light generic_buffer
-

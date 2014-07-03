@@ -8,14 +8,16 @@ Thinkpad Yogas may need modifications, and can't use ideapad-laptop.
 These systems include kernel modules, so you have to have added
 kernel-headers and kernel-devel to your system.  For the orientation program
 and sensor drivers you also need to have the IIO subsystem included in your
-system.  If you are running a kernel older than 3.13 you may have problems.
+system.  If you are running a kernel older than 3.13 you will very likely
+have problems. 
 
 1/ yoga_laptop/ideapad-laptop.c
 
-   A patch to the ideapad-laptop kernel module to make Wifi work on yogas.
-   The ideapad-laptop moodule also handles several ACPI-related keys on the
-   Yoga keyboard.   A similar patch has been backported to Fedora, and is in
-   3.15 (I think, 3.16 for sure) kernels. 
+   A patch to the ideapad-laptop kernel module to make Wifi work on the Yoga
+   2 Pro.  The ideapad-laptop moodule also handles several ACPI-related keys
+   on the Yoga keyboard.  A similar patch will be in 3.16, but one that
+   works for the Yoga Ideapad 1 and Yoga 2 11/13/Pro.  This better patch has
+   been backported to Fedora 19 and Fedora 20 as of the end of June 2014.
 
    To compile and install (warning - this installs a kernel module and may
    break your system, and has to be done each time you install a new kernel,
@@ -32,7 +34,9 @@ system.  If you are running a kernel older than 3.13 you may have problems.
    Patched 3.14 drivers for five of the sensors in the Yoga laptops.  The
    patch adds a quirk so that the hub initializes correctly.  The quirk has
    been added to 3.15 and 3.15 should have better drivers than the ones
-   here.
+   here, so don't use these drivers with a 3.15 kernel.  The 3.15 drivers
+   also have more quirks, perhaps even the right quirk for the Thinkpad
+   Yoga.
 
    To compile and install (warning - this installs several kernel modules and
    may break your system, and has to be done each time you install a new kernel,
@@ -52,8 +56,11 @@ system.  If you are running a kernel older than 3.13 you may have problems.
    changes in ambient brightness.  The program needs the hid-sensor-als
    sensor driver.
 
+   There is also a generic program that can be used to test sensors -
+   generic_buffer. 
+
    To compile and install (after first compiling and installing the sensor
-   drivers): 
+   drivers if necessary): 
 	make programs
 	sudo make programs-install
 
