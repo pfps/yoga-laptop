@@ -22,7 +22,7 @@ light: light.c
 	cc `pkg-config --cflags glib-2.0 --libs glib-2.0` -o light light.c
 
 permissions:
-	@echo Making the control files writable by you and putting the command in /usr/bin
+	@echo Making the control files writable by you
 	chgrp $(GROUP) /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
 	chmod g+w /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
 	chgrp $(GROUP) /dev/iio:device*

@@ -13,6 +13,9 @@ have problems.
 
 1/ yoga_laptop/ideapad-laptop.c
 
+   NOT NEEDED in Fedora 20 or Fedora 19
+   Probably not needed in 3.16 kernels
+
    A patch to the ideapad-laptop kernel module to make Wifi work on the Yoga
    2 Pro.  The ideapad-laptop moodule also handles several ACPI-related keys
    on the Yoga keyboard.  A similar patch will be in 3.16, but one that
@@ -27,9 +30,11 @@ have problems.
    The installation also sets up udev rules and an xmodmap file to handle
    the touchpad_toggle and break keys that are not usually handled correctly.
 
-   Reboot your system to get load the module
+   Reboot your system to load the module
 
 2/ sensor drivers
+
+   NOT NEEDED in 3.15 kernels or Fedora 19 
 
    Patched 3.14 drivers for five of the sensors in the Yoga laptops.  The
    patch adds a quirk so that the hub initializes correctly.  The quirk has
@@ -58,6 +63,8 @@ have problems.
 
    There is also a generic program that can be used to test sensors -
    generic_buffer. 
+
+   You need to have the libXrandr-devel package installed.
 
    To compile and install (after first compiling and installing the sensor
    drivers if necessary): 
