@@ -1,6 +1,7 @@
 ## -*- Makefile -*-
 # Top-level makefile for yoga-laptop project
 # Just defers to the lower-level makefiles
+#
 
 all:	ideapad-laptop sensors-drivers programs
 
