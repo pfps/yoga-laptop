@@ -40,7 +40,7 @@
  **/
 int process_scan(SensorData data, Device_info info, Config config) {
 	if (info.channels_count != 1 || info.channels[0].bytes != 4) {
-		return;
+		return 0;
 	}
 	struct iio_channel_info channel = info.channels[0];
 	if (channel.is_signed) {
@@ -76,7 +76,7 @@ void sigint_callback_handler(int signum) {
 
 int main(int argc, char **argv) {
 	/* Configuration variables */
-	char *trigger_name = NULL, *config_file = "conf/light.ini";
+	char *trigger_name = NULL;
 	Config config = Config_default;
 	static int version_flag = 0, help_flag = 0;
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 	}
 
 	/* Arguments definition */
-	static char* version = "light version 0.3\n";
+	static const char* version = "light version 0.3\n";
 	static char* help;
 	asprintf(&help, "light monitors ambient light sensor and adjusts backlight acordingly\
 \n\
@@ -180,7 +180,7 @@ Options:\n\
 	if (config.debug_level > DEBUG_ALL) printf("iio device number being used is %d\n", info.device_id);
 
 	/* enable the sensors in the device */
-	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, info.device_id);
+	ret = asprintf(&dev_dir_name, "%siio:device%d", iio_dir, info.device_id);
 	if (ret < 0) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -223,7 +223,6 @@ Options:\n\
 
 error_free_triggername:
 	free(trigger_name);
-error_free_dev_dir_name:
 	free(dev_dir_name);
 error_ret:
 	return ret;
