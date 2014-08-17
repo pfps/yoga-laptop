@@ -162,7 +162,6 @@ static int enable_sensors(const char *device_dir)
 {
 	DIR *dp;
 	FILE *sysfsfp;
-	int i;
 	int ret;
 	const struct dirent *ent;
 	char *scan_el_dir;

@@ -27,10 +27,10 @@ extern "C" {
 		// Times to run the script
 		int iterations;
 		// Device name
-		char* device_name;
+		const char* device_name;
 
 		/* Orientation config*/
-		char *or_touchScreenName;
+		const char *or_touchScreenName;
 
 		/* Light config */
 		// Top value used for scaling

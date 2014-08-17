@@ -10,16 +10,16 @@ GROUP := $(shell /usr/bin/id -gn `/usr/bin/logname`)
 all: generic_buffer orientation light
 
 generic_buffer: generic_buffer.c iio_utils.h
-	cc generic_buffer.c -o generic_buffer
+	cc generic_buffer.c $(CFLAGS) -o generic_buffer
 
 orientation: orientation.c iio_utils.h
-	cc orientation.c -o orientation
+	cc orientation.c $(CFLAGS) -o orientation
 
 hinge: hinge.c iio_utils.h
-	cc hinge.c -o hinge
+	cc hinge.c $(CFLAGS) -o hinge
 
 light: light.c
-	cc `pkg-config --cflags glib-2.0 --libs glib-2.0` -o light light.c
+	cc `pkg-config --cflags glib-2.0 --libs glib-2.0` $(CFLAGS) -o light light.c
 
 permissions:
 	@echo Making the control files writable by you
