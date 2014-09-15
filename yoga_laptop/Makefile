@@ -30,6 +30,8 @@ default:
 
 install: install-driver install-keys
 
+uninstall: uninstall-driver uninstall-keys
+
 install-driver:	
 	install --owner=root --group=root --mode=644 $(MODNAME) $(MODDIR)
 
@@ -37,6 +39,14 @@ install-keys:
 	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb /etc/udev/hwdb.d
 	udevadm hwdb --update
 	cp -pr xkeycode /home/${LOGNAME}/.Xmodmap
+
+uninstall-driver:	
+	rm -f $(MODDIR)/$(MODNAME)
+
+uninstall-keys:
+	rm -f /etc/udev/hwdb.d/90-yoga-keyboard.hwdb
+	udevadm hwdb --update
+	rm -f /home/${LOGNAME}/.Xmodmap
 
 clean:
 	rm -rf *.o *.mod.c .tmp_versions .ideapad* modules.order Module.symvers
