@@ -19,6 +19,7 @@ extern "C" {
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/dir.h>
+#include <sys/wait.h>
 #include <linux/types.h>
 #include <string.h>
 #include <poll.h>

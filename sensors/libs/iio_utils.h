@@ -554,7 +554,7 @@ int write_sysfs_int2(char *filename, char *basedir, int val, int val2) {
 	return _write_sysfs_int(filename, basedir, val, 0, 1, val2);
 }
 
-int _write_sysfs_string(char *filename, char *basedir, char *val, int verify) {
+int _write_sysfs_string(const char *filename, const char *basedir, const char *val, int verify) {
 	int ret = 0;
 	FILE *sysfsfp;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
@@ -603,11 +603,11 @@ error_free:
  * @basedir: the sysfs directory in which the file is to be found
  * @val: the string to write
  **/
-int write_sysfs_string_and_verify(char *filename, char *basedir, char *val) {
+int write_sysfs_string_and_verify(const char *filename, const char *basedir, const char *val) {
 	return _write_sysfs_string(filename, basedir, val, 1);
 }
 
-int write_sysfs_string(char *filename, char *basedir, char *val) {
+int write_sysfs_string(const char *filename, const char *basedir, const char *val) {
 	return _write_sysfs_string(filename, basedir, val, 0);
 }
 
@@ -658,6 +658,8 @@ typedef struct SensorData_s {
 	int scan_size;
 	char* data;
 } SensorData;
+
+int size_from_channelarray(struct iio_channel_info *channels, int num_channels);
 
 int prepare_output(Device_info* info, char * dev_dir_name, char * trigger_name,
 		int (*callback)(SensorData, Device_info, Config), Config config) {
