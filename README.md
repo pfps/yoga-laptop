@@ -76,7 +76,7 @@ have problems.
 
    You need to have the libXrandr-devel package installed.
    ```bash
-   sudo apt-get install libXrandr-dev
+   sudo apt-get install libxrandr-dev
    ```
 
    To compile and install (after first compiling and installing the sensor
