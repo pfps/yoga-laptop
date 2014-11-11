@@ -1,5 +1,7 @@
-yoga-laptop
+Yoga - Laptop
 ===========
+
+##Built primarily for the Lenovo yoga 2 Pro
 
 Systems and information to make Lenovo Ideapad Yoga laptops work better.
 Best tested for Yoga 2 Pro, but most of this works on other Ideapad Yogas.
@@ -25,8 +27,13 @@ have problems.
    To compile and install (warning - this installs a kernel module and may
    break your system, and has to be done each time you install a new kernel,
    after booting into the new kernel):
+	```bash
 	make ideapad-laptop
+	```
+	```bash
 	sudo make ideapad-laptop-install
+	```
+	
    The installation also sets up udev rules and an xmodmap file to handle
    the touchpad_toggle and break keys that are not usually handled correctly.
 
@@ -46,9 +53,12 @@ have problems.
    To compile and install (warning - this installs several kernel modules and
    may break your system, and has to be done each time you install a new kernel,
    after booting into the new kernel):
+	```bash
 	make sensors-drivers
+	```
+	```bash
 	sudo make sensors-drivers-install
-
+	```
    Reboot your system to load the drivers
 
 3/ orientation and light programs
@@ -65,9 +75,15 @@ have problems.
    generic_buffer. 
 
    You need to have the libXrandr-devel package installed.
+   ```bash
+   sudo apt-get install libxrandr-dev
+   ```
 
    To compile and install (after first compiling and installing the sensor
    drivers if necessary): 
+	```bash
 	make programs
+	```
+	```bash
 	sudo make programs-install
-
+	```
