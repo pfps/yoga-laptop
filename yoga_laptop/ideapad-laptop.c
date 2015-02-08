@@ -4,8 +4,8 @@
  *  Copyright © 2010 Intel Corporation
  *  Copyright © 2010 David Woodhouse <dwmw2@infradead.org>
  *
- *  it under the terms of the GNU General Public License as published by
  *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  *
@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
-#include <linux/dmi.h>
 #include <linux/rfkill.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
@@ -37,6 +36,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/i8042.h>
+#include <linux/dmi.h>
+#include <linux/device.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
@@ -85,8 +86,9 @@ struct ideapad_private {
 	struct input_dev *inputdev;
 	struct backlight_device *blightdev;
 	struct dentry *debug;
-        bool rfkill_present;
 	unsigned long cfg;
+	bool has_hw_rfkill_switch;
+	bool has_touchpad_control;
 };
 
 static bool no_bt_rfkill;
@@ -473,18 +475,18 @@ static struct rfkill_ops ideapad_rfk_ops = {
 
 static void ideapad_sync_rfk_state(struct ideapad_private *priv)
 {
-	unsigned long hw_blocked;
+	unsigned long hw_blocked = 0;
 	int i;
 
-	if (priv->rfkill_present) {
+	if (priv->has_hw_rfkill_switch) {
 		if (read_ec_data(priv->adev->handle, VPCCMD_R_RF, &hw_blocked))
 			return;
 		hw_blocked = !hw_blocked;
-
-		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
-			if (priv->rfk[i])
-				rfkill_set_hw_state(priv->rfk[i], hw_blocked);
 	}
+
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+		if (priv->rfk[i])
+			rfkill_set_hw_state(priv->rfk[i], hw_blocked);
 }
 
 static int ideapad_register_rfkill(struct ideapad_private *priv, int dev)
@@ -765,6 +767,9 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
 {
 	unsigned long value;
 
+	if (!priv->has_touchpad_control)
+		return;
+
 	/* Without reading from EC touchpad LED doesn't switch state */
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value)) {
 		/* Some IdeaPads don't really turn off touchpad - they only
@@ -823,13 +828,50 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 	}
 }
 
+/*
+ * Some ideapads don't have a hardware rfkill switch, reading VPCCMD_R_RF
+ * always results in 0 on these models, causing ideapad_laptop to wrongly
+ * report all radios as hardware-blocked.
+ */
+static struct dmi_system_id no_hw_rfkill_list[] = {
+	{
+		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 2"),
+		},
+	},
+	{}
+};
+
+/*
+ * Some models don't offer touchpad ctrl through the ideapad interface, causing
+ * ideapad_sync_touchpad_state to send wrong touchpad enable/disable events.
+ */
+static struct dmi_system_id no_touchpad_ctrl_list[] = {
+	{
+		.ident = "Lenovo Yoga 1 series",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo IdeaPad Yoga"),
+		},
+	},
+	{
+		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 2"),
+		},
+	},
+	{}
+};
+
 static int ideapad_acpi_add(struct platform_device *pdev)
 {
 	int ret, i;
 	int cfg;
 	struct ideapad_private *priv;
 	struct acpi_device *adev;
-	char const *s;
 
 	ret = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
 	if (ret)
@@ -838,7 +880,7 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (read_method_int(adev->handle, "_CFG", &cfg))
 		return -ENODEV;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -846,19 +888,12 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	priv->cfg = cfg;
 	priv->adev = adev;
 	priv->platform_device = pdev;
-
-	/*  check for Yoga 2 Pro, which has no rfkill switches */
-	s = dmi_get_system_info(DMI_PRODUCT_VERSION);
-	if (s && !(strncmp(s, "Lenovo Yoga 2 Pro", 17)) ) {
-		priv->rfkill_present = false;
-	} else {
-		priv->rfkill_present = true;
-	}
-
+	priv->has_hw_rfkill_switch = !dmi_check_system(no_hw_rfkill_list);
+	priv->has_touchpad_control = !dmi_check_system(no_touchpad_ctrl_list);
 
 	ret = ideapad_sysfs_init(priv);
 	if (ret)
-		goto sysfs_failed;
+		return ret;
 
 	ret = ideapad_debugfs_init(priv);
 	if (ret)
@@ -868,14 +903,17 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (ret)
 		goto input_failed;
 
-	if (priv->rfkill_present) {
-		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
-			if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
-				ideapad_register_rfkill(priv, i);
-			else
-				priv->rfk[i] = NULL;
-		}
-	}
+	/*
+	 * On some models without a hw-switch (the yoga 2 13 at least)
+	 * VPCCMD_W_RF must be explicitly set to 1 for the wifi to work.
+	 */
+	if (!priv->has_hw_rfkill_switch)
+		write_ec_cmd(priv->adev->handle, VPCCMD_W_RF, 1);
+
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+		if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
+			ideapad_register_rfkill(priv, i);
+
 	ideapad_sync_rfk_state(priv);
 	ideapad_sync_touchpad_state(priv);
 
@@ -893,17 +931,13 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 notification_failed:
 	ideapad_backlight_exit(priv);
 backlight_failed:
-	if (priv->rfkill_present) {
-		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
-			ideapad_unregister_rfkill(priv, i);
-	}
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+		ideapad_unregister_rfkill(priv, i);
 	ideapad_input_exit(priv);
 input_failed:
 	ideapad_debugfs_exit(priv);
 debugfs_failed:
 	ideapad_sysfs_exit(priv);
-sysfs_failed:
-	kfree(priv);
 	return ret;
 }
 
@@ -915,15 +949,12 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	acpi_remove_notify_handler(priv->adev->handle,
 		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify);
 	ideapad_backlight_exit(priv);
-	if (priv->rfkill_present) {
-		for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
-			ideapad_unregister_rfkill(priv, i);
-	}
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
+		ideapad_unregister_rfkill(priv, i);
 	ideapad_input_exit(priv);
 	ideapad_debugfs_exit(priv);
 	ideapad_sysfs_exit(priv);
 	dev_set_drvdata(&pdev->dev, NULL);
-	kfree(priv);
 
 	return 0;
 }

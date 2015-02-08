@@ -3,7 +3,7 @@
 # Just defers to the lower-level makefiles
 #
 
-all:	ideapad-laptop sensors-drivers programs
+standard:	programs
 
 programs:
 	cd sensors && $(MAKE) all
