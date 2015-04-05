@@ -341,6 +341,8 @@ Use via something like\n\
 	signal(SIGINT, sigint_callback_handler);
 	signal(SIGHUP, sigint_callback_handler);
 	signal(SIGUSR1, sigusr_callback_handler);
+	
+error_restart:	
 
 	/* Find the device requested */
 	info.device_id = find_type_by_name(device_name, "iio:device");
@@ -388,14 +390,18 @@ Use via something like\n\
 
 	for (i = 0; i != config.iterations; i++) {
 		if (config.debug_level > 2) printf("Finding orientation %d\n", orientation);
-		if ((int)(orientation = (OrientationPositions)(prepare_output(&info, dev_dir_name, trigger_name, &process_scan, config))) < 0) break;
-		if (config.debug_level > 2) printf("Found orientation: or:%d, prev:%d, scr:%d, %d\n", orientation, previous_orientation, screen_orientation, FLAT);
-		if (config.debug_level > 0) printf("Orientation at %3.1f is %s\n", ((double) config.poll_timeout / 1000000.0) * i, symbolic_orientation(orientation));
-		if (previous_orientation == orientation /* only rotate when stable */ &&
-				orientation != screen_orientation && orientation != FLAT && !orientation_lock) {
-			rotate_to(orientation);
+		if ((int)(orientation = (OrientationPositions)(prepare_output(&info, dev_dir_name, trigger_name, &process_scan, config))) != -1) {
+			if (config.debug_level > 2) printf("Found orientation: or:%d, prev:%d, scr:%d, %d\n", orientation, previous_orientation, screen_orientation, FLAT);
+			if (config.debug_level > 0) printf("Orientation at %3.1f is %s\n", ((double) config.poll_timeout / 1000000.0) * i, symbolic_orientation(orientation));
+			if (previous_orientation == orientation /* only rotate when stable */ &&
+					orientation != screen_orientation && orientation != FLAT && !orientation_lock) {
+				rotate_to(orientation);
+				previous_orientation = orientation;
+		} else {
+			orientation = FLAT;
+			sleep(10);
+			goto error_restart;
 		}
-		previous_orientation = orientation;
 		usleep(config.poll_timeout);
 	}
 
