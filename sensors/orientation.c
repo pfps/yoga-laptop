@@ -397,6 +397,8 @@ error_restart:
 					orientation != screen_orientation && orientation != FLAT && !orientation_lock) {
 				rotate_to(orientation);
 				previous_orientation = orientation;
+
+			}
 		} else {
 			orientation = FLAT;
 			sleep(10);
