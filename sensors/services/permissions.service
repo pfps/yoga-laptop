@@ -1,0 +1,22 @@
+# /etc/systemd/system/permissions.service
+
+[Unit]
+Description=Set up Permissions for Automatic Screen Orientation
+After=suspend.target
+
+[Service]
+Type=oneshot
+Environment="DISPLAY=:0"
+#
+# Re-enable the touchscreen after suspend
+ExecStart=/sbin/rmmod usbhid hid_multitouch
+ExecStart=/sbin/modprobe usbhid hid_multitouch
+#
+# Set permissions
+ExecStart=/opt/set_permissions.sh
+
+[Install]
+#
+# Activate on startup and after suspend
+WantedBy=suspend.target
+WantedBy=graphical.target
