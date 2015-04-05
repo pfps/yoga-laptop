@@ -1,0 +1,16 @@
+# /etc/systemd/system/orientation.service
+
+[Unit]
+Description=Authomativally Orientate Screen
+Wants=permissions.service
+After=permissions.service
+
+[Service]
+Group=users
+Environment="DISPLAY=:0"
+ExecStart=/usr/bin/orientation --debug=-1
+ExecStop=/usr/bin/pkill -f orientation
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target
