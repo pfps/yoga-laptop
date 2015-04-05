@@ -64,7 +64,7 @@ void process_scan_1(char *data, struct iio_channel_info *channels, int num_chann
 	for (k = 0; k < num_channels; k++) {
 		if (0 == strcmp(channels[k].name, ch_name)) {
 			switch (channels[k].bytes) {
-					/* only a few cases implemented so far */
+				/* only a few cases implemented so far */
 				case 2:
 					break;
 				case 4:
@@ -120,10 +120,10 @@ int process_scan(SensorData data, Device_info info, Config config) {
 		int accel_z_abs = abs(accel_z);
 		/* printf("%u > %u && %u > %u\n", accel_z_abs, 4*accel_x_abs, accel_z_abs, 4*accel_y_abs); */
 		if (accel_z_abs > 4 * accel_x_abs && accel_z_abs > 4 * accel_y_abs) {
-		  /* printf("set FLAT\n"); */
+			/* printf("set FLAT\n"); */
 			orientation = FLAT;
 		} else if (3 * accel_y_abs > 2 * accel_x_abs) {
-		  /* printf("set TOP/BOTTOM (%u, %u)\n", 3*accel_y_abs, 2*accel_x_abs); */
+			/* printf("set TOP/BOTTOM (%u, %u)\n", 3*accel_y_abs, 2*accel_x_abs); */
 			orientation = accel_y > 0 ? BOTTOM : TOP;
 		} else {
 			orientation = accel_x > 0 ? LEFT : RIGHT;
@@ -139,17 +139,23 @@ int process_scan(SensorData data, Device_info info, Config config) {
 const char * symbolic_orientation(OrientationPositions orientation) {
 	const char * orient;
 	switch (orientation) {
-		case FLAT: orient = "flat";
+		case FLAT:
+			orient = "flat";
 			break;
-		case BOTTOM: orient = "inverted";
+		case BOTTOM:
+			orient = "inverted";
 			break;
-		case TOP: orient = "normal";
+		case TOP:
+			orient = "normal";
 			break;
-		case LEFT: orient = "left";
+		case LEFT:
+			orient = "left";
 			break;
-		case RIGHT: orient = "right";
+		case RIGHT:
+			orient = "right";
 			break;
-		default: orient = "invalid";
+		default:
+			orient = "invalid";
 			break;
 	}
 	return orient;
@@ -179,13 +185,17 @@ void rotate_to(OrientationPositions orient) {
 
 		if (0 != strlen(touchScreenName) && 0 == (pid = fork())) { /* rotate the touchscreen */
 			switch (orient) {
-				case TOP: execv(xinput, (char * const *)(tsnormal));
+				case TOP:
+					execv(xinput, (char * const *)(tsnormal));
 					break;
-				case BOTTOM: execv(xinput, (char * const *)(tsinverted));
+				case BOTTOM:
+					execv(xinput, (char * const *)(tsinverted));
 					break;
-				case LEFT: execv(xinput, (char * const *)(tsleft));
+				case LEFT:
+					execv(xinput, (char * const *)(tsleft));
 					break;
-				case RIGHT: execv(xinput, (char * const *)(tsright));
+				case RIGHT:
+					execv(xinput, (char * const *)(tsright));
 					break;
 				case FLAT:
 				default:
@@ -264,13 +274,13 @@ int main(int argc, char **argv) {
 rotates the screen and touchscreen to match\n\
 \n\
 Options:\n\
-  --help		Print this help message and exit\n\
-  --version		Print version information and exit\n\
-  --count=iterations	If >0 run for only this number of iterations [%d]\n\
-  --name=accel_name	Industrial IO accelerometer device name [%s]\n\
-  --usleep=time		Polling sleep time in microseconds [%u]\n\
-  --debug=level		Print out debugging information (-1 through 4) [%d]\n\
-  --touchscreen=ts_name	TouchScreen name [%s]\n\
+  --help			Print this help message and exit\n\
+  --version			Print version information and exit\n\
+  --count=iterations		If >0 run for only this number of iterations [%d]\n\
+  --name=accel_name		Industrial IO accelerometer device name [%s]\n\
+  --usleep=time			Polling sleep time in microseconds [%u]\n\
+  --debug=level			Print out debugging information (-1 through 4) [%d]\n\
+  --touchscreen=ts_name		TouchScreen name [%s]\n\
 \n\
 orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
 rotates the screen and two SIGUSR1 interrupts within a second or two by \n\
@@ -341,8 +351,8 @@ Use via something like\n\
 	signal(SIGINT, sigint_callback_handler);
 	signal(SIGHUP, sigint_callback_handler);
 	signal(SIGUSR1, sigusr_callback_handler);
-	
-error_restart:	
+
+error_restart:
 
 	/* Find the device requested */
 	info.device_id = find_type_by_name(device_name, "iio:device");
@@ -397,6 +407,8 @@ error_restart:
 					orientation != screen_orientation && orientation != FLAT && !orientation_lock) {
 				rotate_to(orientation);
 				previous_orientation = orientation;
+
+			}
 		} else {
 			orientation = FLAT;
 			sleep(10);
