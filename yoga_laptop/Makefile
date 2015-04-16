@@ -36,7 +36,7 @@ install-driver:
 	install --owner=root --group=root --mode=644 $(MODNAME) $(MODDIR)
 
 install-keys:
-	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb /etc/udev/hwdb.d
+	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb /usr/lib/udev/hwdb.d
 	udevadm hwdb --update
 	cp -pr xkeycode /home/${LOGNAME}/.Xmodmap
 

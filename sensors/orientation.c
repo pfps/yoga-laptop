@@ -401,14 +401,13 @@ error_restart:
 	for (i = 0; i != config.iterations; i++) {
 		if (config.debug_level > 2) printf("Finding orientation %d\n", orientation);
 		if ((int)(orientation = (OrientationPositions)(prepare_output(&info, dev_dir_name, trigger_name, &process_scan, config))) != -1) {
-			if (config.debug_level > 2) printf("Found orientation: or:%d, prev:%d, scr:%d, %d\n", orientation, previous_orientation, screen_orientation, FLAT);
+			if (config.debug_level > 2) printf("Found orientation: curr:%d, prev:%d, screen:%d\n", orientation, previous_orientation, screen_orientation);
 			if (config.debug_level > 0) printf("Orientation at %3.1f is %s\n", ((double) config.poll_timeout / 1000000.0) * i, symbolic_orientation(orientation));
 			if (previous_orientation == orientation /* only rotate when stable */ &&
 					orientation != screen_orientation && orientation != FLAT && !orientation_lock) {
 				rotate_to(orientation);
-				previous_orientation = orientation;
-
 			}
+			previous_orientation = orientation;
 		} else {
 			orientation = FLAT;
 			sleep(10);
