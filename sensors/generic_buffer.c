@@ -35,6 +35,27 @@
 #include <inttypes.h>
 #include <syslog.h> /*pfps*/
 #include "iio_utils.h"
+extern inline int build_channel_array(const char *device_dir,
+                  struct iio_channel_info **ci_array,
+                  int *counter);
+extern inline int iioutils_break_up_name(const char *full_name,
+                  char **generic_name);
+extern inline int iioutils_get_param_float(float *output,
+                    const char *param_name,
+                    const char *device_dir,
+                    const char *name,
+                    const char *generic_name);
+extern inline int iioutils_get_type(unsigned *is_signed,
+                 unsigned *bytes,
+                 unsigned *bits_used,
+                 unsigned *shift,
+                 uint64_t *mask,
+                 unsigned *be,
+                 const char *device_dir,
+                 const char *name,
+                 const char *generic_name);
+extern inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
+                     int cnt);
 
 /**
  * size_from_channelarray() - calculate the storage size of a scan
@@ -124,7 +145,7 @@ void process_scan(char *data,
 			  /*pfps printf("MASK %d %8x  ",channels[k].bits_used,val); */
 			  val = (int32_t)(val << (32 - channels[k].bits_used)) >> (32 - channels[k].bits_used);
 			  /*pfps printf("FIX %x\n",val); */
-			  printf("%s %4d %6.1f  ", channels[k].name, 
+			  printf("%s %4d %6.1f  ", channels[k].name,
 				 val, ((float)val + channels[k].offset)* channels[k].scale);
 			}
                         break;
@@ -273,7 +294,7 @@ int main(int argc, char **argv)
         printf("iio device number being used is %d\n", dev_num);
 
         asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
-	
+
 	/* enable the sensors in the device */
 	enable_sensors(dev_dir_name);
 
