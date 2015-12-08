@@ -13,7 +13,6 @@ generic_buffer: generic_buffer.c iio_utils.h
 	cc generic_buffer.c $(CFLAGS) -o generic_buffer
 
 orientation: orientation.c iio_utils.h
-	cc orientation.c $(CFLAGS) -o orientation
 	cc orientation.c `pkg-config --cflags --libs libnotify` $(CFLAGS) -o orientation
 
 hinge: hinge.c iio_utils.h
