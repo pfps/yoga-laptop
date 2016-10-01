@@ -35,6 +35,7 @@ typedef enum {
 } OrientationPositions; /* various orientations */
 
 static const char* touchScreenName = "";
+static const char* wacomPenName = "";
 static int debug_level = -1;
 static bool orientation_lock = false;
 static OrientationPositions screen_orientation = INVALID;
@@ -164,6 +165,7 @@ const char * symbolic_orientation(OrientationPositions orientation) {
 void rotate_to(OrientationPositions orient) {
 	const char * xrandr = "/usr/bin/xrandr";
 	const char * xinput = "/usr/bin/xinput";
+	// Touchscreen
 	const char * const tsnormal[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
 		"1", "0", "0", "0", "1", "0", "0", "0", "1", (char *) NULL};
 	const char * const tsright[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
@@ -171,6 +173,15 @@ void rotate_to(OrientationPositions orient) {
 	const char * const tsleft[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
 		"0", "-1", "1", "1", "0", "0", "0", "0", "1", (char *) NULL};
 	const char * const tsinverted[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
+		"-1", "0", "1", "0", "-1", "1", "0", "0", "1", (char *) NULL};
+	// Wacom Pen
+	const char * const wanormal[] = {xinput, "set-prop", wacomPenName, "Coordinate Transformation Matrix",
+		"1", "0", "0", "0", "1", "0", "0", "0", "1", (char *) NULL};
+	const char * const waright[] = {xinput, "set-prop", wacomPenName, "Coordinate Transformation Matrix",
+		"0", "1", "0", "-1", "0", "1", "0", "0", "1", (char *) NULL};
+	const char * const waleft[] = {xinput, "set-prop", wacomPenName, "Coordinate Transformation Matrix",
+		"0", "-1", "1", "1", "0", "0", "0", "0", "1", (char *) NULL};
+	const char * const wainverted[] = {xinput, "set-prop", wacomPenName, "Coordinate Transformation Matrix",
 		"-1", "0", "1", "0", "-1", "1", "0", "0", "1", (char *) NULL};
 	int status = 0, pid;
 	const char *orientation = symbolic_orientation(orient);
@@ -183,19 +194,19 @@ void rotate_to(OrientationPositions orient) {
 		wait(&status);
 		if (status) printf("First child (xrandr) returned %d\n", status);
 
-		if (0 != strlen(touchScreenName) && 0 == (pid = fork())) { /* rotate the touchscreen */
+		if (0 != strlen(touchScreenName) && 0 != strlen(wacomPenName) && 0 == (pid = fork())) { /* rotate the touchscreen and wacom pen input*/
 			switch (orient) {
 				case TOP:
-					execv(xinput, (char * const *)(tsnormal));
+					fork() ? execv(xinput, (char * const *)(tsnormal)) : execv(xinput, (char * const *)(wanormal));
 					break;
 				case BOTTOM:
-					execv(xinput, (char * const *)(tsinverted));
+					fork() ? execv(xinput, (char * const *)(tsinverted)) : execv(xinput, (char * const *)(wainverted));
 					break;
 				case LEFT:
-					execv(xinput, (char * const *)(tsleft));
+					fork() ? execv(xinput, (char * const *)(tsleft)) : execv(xinput, (char * const *)(waleft));
 					break;
 				case RIGHT:
-					execv(xinput, (char * const *)(tsright));
+					fork() ? execv(xinput, (char * const *)(tsright)) : execv(xinput, (char * const *)(waright));
 					break;
 				case FLAT:
 				default:
@@ -264,6 +275,7 @@ int main(int argc, char **argv) {
 	// Update default settings
 	config.device_name = "accel_3d";
 	touchScreenName = config.or_touchScreenName;
+	wacomPenName = config.or_wacomPenName;
 	debug_level = config.debug_level;
 
 	/* Arguments definition */
@@ -281,6 +293,7 @@ Options:\n\
   --usleep=time			Polling sleep time in microseconds [%u]\n\
   --debug=level			Print out debugging information (-1 through 4) [%d]\n\
   --touchscreen=ts_name		TouchScreen name [%s]\n\
+  --wacompen=wa_name		WacomPen name [%s]\n\
 \n\
 orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
 rotates the screen and two SIGUSR1 interrupts within a second or two by \n\
@@ -288,7 +301,7 @@ rotating the screen clockwise and suspending rotations.\n\
 Use via something like\n\
     pkill --signal SIGUSR1 --exact orientation\n",
 			config.iterations, config.device_name, config.poll_timeout, config.debug_level,
-			config.or_touchScreenName);
+			config.or_touchScreenName,config.or_wacomPenName);
 
 	/* Device info */
 	Device_info info;
@@ -305,13 +318,14 @@ Use via something like\n\
 		{"count", required_argument, 0, 'c'},
 		{"name", required_argument, 0, 'n'},
 		{"touchscreen", required_argument, 0, 't'},
+		{"wacompen", required_argument, 0, 'w'},
 		{"usleep", required_argument, 0, 'u'},
 		{"debug", required_argument, 0, 'd'},
 		{0, 0, 0, 0}
 	};
 	int option_index = 0;
 
-	while ((c = getopt_long(argc, argv, "c:n:d:t:u:", long_options, &option_index))
+	while ((c = getopt_long(argc, argv, "c:n:d:t:w:u:", long_options, &option_index))
 			!= -1) {
 		switch (c) {
 			case 0:
@@ -325,6 +339,10 @@ Use via something like\n\
 			case 't':
 				config.or_touchScreenName = optarg;
 				touchScreenName = optarg;
+				break;
+			case 'w':
+				config.or_wacomPenName = optarg;
+				wacomPenName = optarg;
 				break;
 			case 'd':
 				config.debug_level = strtol(optarg, &dummy, 10);
