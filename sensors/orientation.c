@@ -29,6 +29,29 @@
 #endif // if !defined(_GNU_SOURCE)
 
 #include "libs/common.h"
+#include <libnotify/notify.h>
+
+extern inline int build_channel_array(const char *device_dir,
+                  struct iio_channel_info **ci_array,
+                  int *counter);
+extern inline int iioutils_break_up_name(const char *full_name,
+				  char **generic_name);
+extern inline int iioutils_get_param_float(float *output,
+				    const char *param_name,
+				    const char *device_dir,
+				    const char *name,
+				    const char *generic_name);
+extern inline int iioutils_get_type(unsigned *is_signed,
+			     unsigned *bytes,
+			     unsigned *bits_used,
+			     unsigned *shift,
+			     uint64_t *mask,
+			     unsigned *be,
+			     const char *device_dir,
+			     const char *name,
+			     const char *generic_name);
+extern inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
+					 int cnt);
 
 typedef enum {
 	INVALID = -1, FLAT = 0, TOP, RIGHT, BOTTOM, LEFT
@@ -231,7 +254,8 @@ void sigint_callback_handler(int signum) {
 
 void sigusr_callback_handler(int signum) {
 	(void)(signum); // unused
-	int now = time(NULL), pid, status;
+	int now = time(NULL);
+	NotifyNotification * rotate;
 
 	previous_orientation = screen_orientation;
 	if (now <= last_sigusr_time + 1) {
@@ -253,15 +277,13 @@ void sigusr_callback_handler(int signum) {
 			printf("Signal %s rotation\n", orientation_lock ? "suspends" : "resumes");
 		}
 		last_sigusr_time = now;
-		if (0 == (pid = fork())) {
-			if (orientation_lock) {
-				system("/usr/bin/notify-send -i /home/buri/.utils/yoga/rotateoff.png \"Autorotate disabled\"");
-			} else {
-				system("/usr/bin/notify-send -i /home/buri/.utils/yoga/rotateon.png \"Autorotate enabled\"");
-			}
-		} else {
-			wait(&status);
-		}
+		notify_init ("Orientation");
+		rotate = notify_notification_new ("Orientation",
+				orientation_lock ? "Autorotate disabled" : "Autorotate enabled",
+				orientation_lock ? "rotation-locked-symbolic" : "rotation-allowed-symbolic");
+		notify_notification_show (rotate, NULL);
+		g_object_unref(G_OBJECT(rotate));
+		notify_uninit();
 	}
 }
 

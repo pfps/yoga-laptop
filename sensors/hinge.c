@@ -1,4 +1,4 @@
-/* Rotate Lenovo Yoga (2 Pro) display and ELAN Touchscreen to match hinge of screen 
+/* Rotate Lenovo Yoga (2 Pro) display and ELAN Touchscreen to match hinge of screen
  * Copyright (c) 2014 Peter F. Patel-Schneider
  *
  * Modified from industrialio buffer test code.
@@ -19,7 +19,7 @@
  * hinge is the beginnings of a system to determine the hinge angle from the
  * two accelerometers.  It is not functional as of yet.
  *
- * WARNING:  This is not production quality code.  
+ * WARNING:  This is not production quality code.
  */
 
 #define _GNU_SOURCE
@@ -44,6 +44,28 @@
 #include "iio_utils.h"
 
 #include <X11/extensions/Xrandr.h>
+
+extern inline int build_channel_array(const char *device_dir,
+                  struct iio_channel_info **ci_array,
+                  int *counter);
+extern inline int iioutils_break_up_name(const char *full_name,
+          char **generic_name);
+extern inline int iioutils_get_param_float(float *output,
+            const char *param_name,
+            const char *device_dir,
+            const char *name,
+            const char *generic_name);
+extern inline int iioutils_get_type(unsigned *is_signed,
+           unsigned *bytes,
+           unsigned *bits_used,
+           unsigned *shift,
+           uint64_t *mask,
+           unsigned *be,
+           const char *device_dir,
+           const char *name,
+           const char *generic_name);
+extern inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
+           int cnt);
 
 
 static int debug_level = 0;
@@ -92,7 +114,7 @@ int size_from_channelarray(struct iio_channel_info *channels, int num_channels)
  *  location offsets.
  * @num_channels:       number of channels
  * ch_name:		name of channel to get
- * ch_val:		value for the channel 
+ * ch_val:		value for the channel
  * ch_present:		whether the channel is present
  **/
 void process_scan_1(char *data, struct iio_channel_info *channels, int num_channels,
@@ -130,7 +152,7 @@ void process_scan_1(char *data, struct iio_channel_info *channels, int num_chann
 
 
 /**
- * process_scan_3() - get three integer values - see above 
+ * process_scan_3() - get three integer values - see above
  **/
 void process_scan_3(char *data, struct iio_channel_info *channels, int num_channels,
 		    char *ch_name_1, int *ch_val_1, bool *ch_present_1,
@@ -311,13 +333,13 @@ int find_orientation(int dev_num, char * dev_dir_name, char * trigger_name,
   } else orientation = accel_x > 0 ? LEFT : RIGHT;
   if (debug_level > 1) printf("Orientation %d: %5d %5d %5d\n",
 				    orientation,accel_x,accel_y,accel_z);
-  
+
   return(orientation);
 }
 
 
 /* symbolic orientation as used in xrandr */
-char * symbolic_orientation(orientation) { 
+char * symbolic_orientation(orientation) {
   char * orient;
   switch ( orientation ) {
   case FLAT : orient = "flat"; break;
@@ -423,7 +445,7 @@ int setup_device(const char * dev_name, char **dev_dir_name, char **dev_trigger_
     ret = -ENODEV;
     goto error_ret;
   }
-  
+
   if (debug_level > -1) printf("iio device number being used is %d\n", *dev_num);
   /* enable the sensors */
   asprintf(dev_dir_name, "%siio:device%d", iio_dir, *dev_num);
