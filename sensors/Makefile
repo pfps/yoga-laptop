@@ -31,7 +31,7 @@ permissions:
 install:	orientation permissions
 	install --owner=root --group=root --mode=755 orientation /usr/bin
 	install --owner=root --group=root --mode=755 light /usr/bin
-	@echo NOTE: In most cases you also need to install drivers from the drivers directory
+	@echo NOTE: This does not install drivers from the drivers directory, but only install them if necessary.
 
 clean:
 	rm -f *.o orientation light generic_buffer
