@@ -21,16 +21,10 @@ hinge: hinge.c iio_utils.h
 light: light.c
 	cc `pkg-config --cflags glib-2.0 --libs glib-2.0` $(CFLAGS) -o light light.c
 
-permissions:
-	@echo Making the control files writable by you
-	chgrp $(GROUP) /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
-	chmod g+w /sys/bus/iio/devices/iio:device*/scan_elements/in_*_en /sys/bus/iio/devices/iio:device*/buffer/* /sys/bus/iio/devices/iio:device*/trigger/current_trigger
-	chgrp $(GROUP) /dev/iio:device*
-	chmod g+rw /dev/iio:device*
-
 install:	orientation permissions
 	install --owner=root --group=root --mode=755 orientation /usr/bin
 	install --owner=root --group=root --mode=755 light /usr/bin
+	install --owner=root --group=root --mode 644 conf/85-orientation.rules /lib/udev/rules.d
 	@echo NOTE: This does not install drivers from the drivers directory, but only install them if necessary.
 
 clean:
