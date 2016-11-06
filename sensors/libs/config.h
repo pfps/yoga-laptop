@@ -30,7 +30,7 @@ extern "C" {
 		const char* device_name;
 
 		/* Orientation config*/
-		const char *or_touchScreenName;
+		const char *or_touchScreenName[5];
 
 		/* Light config */
 		// Top value used for scaling
@@ -44,7 +44,7 @@ extern "C" {
 		"",
 
 		// Orientation
-		"ELAN Touchscreen",
+		{"ELAN Touchscreen", "", "", "", ""},
 
 		// Light
 		1400,
