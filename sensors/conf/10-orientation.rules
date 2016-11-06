@@ -1,0 +1,5 @@
+ATTR{name}=="accel_3d", RUN+="/usr/bin/find /sys/bus/iio/devices/$kernel/scan_elements -name in_*_en -execdir /bin/chmod 664 {} ; -execdir /bin/chgrp plugdev {} ;"
+ATTR{name}=="accel_3d", RUN+="/usr/bin/find /sys/bus/iio/devices/$kernel/buffer -name * -execdir /bin/chmod 664 {} ; -execdir /bin/chgrp plugdev {} ;"
+ATTR{name}=="accel_3d", RUN+="/usr/bin/find /sys/bus/iio/devices/$kernel/trigger -name current_trigger -execdir /bin/chmod 664 {} ; -execdir /bin/chgrp plugdev {} ;"
+ATTR{name}=="accel_3d", RUN+="/usr/bin/find /sys/bus/iio/devices/$kernel/ -name buffer -o -name trigger -o -name scan_elements -execdir /bin/chmod 775 {} ; -execdir /bin/chgrp plugdev {} ;"
+ATTR{name}=="accel_3d", SYMLINK+="%k", GROUP="plugdev", MODE="664"
