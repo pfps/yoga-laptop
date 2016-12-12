@@ -57,7 +57,7 @@ typedef enum {
 	INVALID = -1, FLAT = 0, TOP, RIGHT, BOTTOM, LEFT
 } OrientationPositions; /* various orientations */
 
-static const char* touchScreenName = "";
+static const char* touchScreenName[5] = {"", "", "", "", ""};
 static int debug_level = -1;
 static bool orientation_lock = false;
 static OrientationPositions screen_orientation = INVALID;
@@ -187,46 +187,49 @@ const char * symbolic_orientation(OrientationPositions orientation) {
 void rotate_to(OrientationPositions orient) {
 	const char * xrandr = "/usr/bin/xrandr";
 	const char * xinput = "/usr/bin/xinput";
-	const char * const tsnormal[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"1", "0", "0", "0", "1", "0", "0", "0", "1", (char *) NULL};
-	const char * const tsright[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"0", "1", "0", "-1", "0", "1", "0", "0", "1", (char *) NULL};
-	const char * const tsleft[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"0", "-1", "1", "1", "0", "0", "0", "0", "1", (char *) NULL};
-	const char * const tsinverted[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
-		"-1", "0", "1", "0", "-1", "1", "0", "0", "1", (char *) NULL};
-	int status = 0, pid;
-	const char *orientation = symbolic_orientation(orient);
+    const char *orientation = symbolic_orientation(orient);
+    printf("ROTATE to %s\n", orientation);
+    screen_orientation = orient;
+    
+	for(int i = 0; i < 5; i++) {
+		const char * const tsnormal[] = {xinput, "set-prop", touchScreenName[i], "Coordinate Transformation Matrix",
+			"1", "0", "0", "0", "1", "0", "0", "0", "1", (char *) NULL};
+		const char * const tsright[] = {xinput, "set-prop", touchScreenName[i], "Coordinate Transformation Matrix",
+			"0", "1", "0", "-1", "0", "1", "0", "0", "1", (char *) NULL};
+		const char * const tsleft[] = {xinput, "set-prop", touchScreenName[i], "Coordinate Transformation Matrix",
+			"0", "-1", "1", "1", "0", "0", "0", "0", "1", (char *) NULL};
+		const char * const tsinverted[] = {xinput, "set-prop", touchScreenName[i], "Coordinate Transformation Matrix",
+			"-1", "0", "1", "0", "-1", "1", "0", "0", "1", (char *) NULL};
+		int status = 0, pid;
 
-	printf("ROTATE to %s\n", orientation);
-	screen_orientation = orient;
-	if (0 == (pid = fork())) { /* rotate the screen */
-		execl(xrandr, xrandr, "--orientation", orientation, (char *) NULL);
-	} else {
-		wait(&status);
-		if (status) printf("First child (xrandr) returned %d\n", status);
-
-		if (0 != strlen(touchScreenName) && 0 == (pid = fork())) { /* rotate the touchscreen */
-			switch (orient) {
-				case TOP:
-					execv(xinput, (char * const *)(tsnormal));
-					break;
-				case BOTTOM:
-					execv(xinput, (char * const *)(tsinverted));
-					break;
-				case LEFT:
-					execv(xinput, (char * const *)(tsleft));
-					break;
-				case RIGHT:
-					execv(xinput, (char * const *)(tsright));
-					break;
-				case FLAT:
-				default:
-					break;
-			}
+		if (0 == (pid = fork())) { /* rotate the screen */
+			execl(xrandr, xrandr, "--orientation", orientation, (char *) NULL);
 		} else {
 			wait(&status);
-			if (status) printf("Second child (xinput) returned %d\n", status);
+			if (status) printf("First child (xrandr) returned %d\n", status);
+
+			if (0 != strlen(touchScreenName[i]) && 0 == (pid = fork())) { /* rotate the touchscreen */
+				switch (orient) {
+					case TOP:
+						execv(xinput, (char * const *)(tsnormal));
+						break;
+					case BOTTOM:
+						execv(xinput, (char * const *)(tsinverted));
+						break;
+					case LEFT:
+						execv(xinput, (char * const *)(tsleft));
+						break;
+					case RIGHT:
+						execv(xinput, (char * const *)(tsright));
+						break;
+					case FLAT:
+					default:
+						break;
+				}
+			} else {
+				wait(&status);
+				if (status) printf("Second child (xinput) returned %d\n", status);
+			}
 		}
 	}
 }
@@ -285,7 +288,7 @@ int main(int argc, char **argv) {
 
 	// Update default settings
 	config.device_name = "accel_3d";
-	touchScreenName = config.or_touchScreenName;
+	*touchScreenName = *config.or_touchScreenName;
 	debug_level = config.debug_level;
 
 	/* Arguments definition */
@@ -310,7 +313,7 @@ rotating the screen clockwise and suspending rotations.\n\
 Use via something like\n\
     pkill --signal SIGUSR1 --exact orientation\n",
 			config.iterations, config.device_name, config.poll_timeout, config.debug_level,
-			config.or_touchScreenName);
+			config.or_touchScreenName[0]);
 
 	/* Device info */
 	Device_info info;
@@ -332,7 +335,7 @@ Use via something like\n\
 		{0, 0, 0, 0}
 	};
 	int option_index = 0;
-
+	int touchScreen_index=0;
 	while ((c = getopt_long(argc, argv, "c:n:d:t:u:", long_options, &option_index))
 			!= -1) {
 		switch (c) {
@@ -345,8 +348,13 @@ Use via something like\n\
 				config.device_name = optarg;
 				break;
 			case 't':
-				config.or_touchScreenName = optarg;
-				touchScreenName = optarg;
+				if(touchScreen_index >= 10) {
+					printf("Too many touchscreens\n");
+					return -1;
+				}
+				config.or_touchScreenName[touchScreen_index] = optarg;
+				touchScreenName[touchScreen_index] = optarg;
+				touchScreen_index++;
 				break;
 			case 'd':
 				config.debug_level = strtol(optarg, &dummy, 10);
