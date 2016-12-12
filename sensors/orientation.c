@@ -58,6 +58,7 @@ typedef enum {
 } OrientationPositions; /* various orientations */
 
 static const char* touchScreenName = "";
+static const char* touchPadName = "";
 static int debug_level = -1;
 static bool orientation_lock = false;
 static OrientationPositions screen_orientation = INVALID;
@@ -195,6 +196,9 @@ void rotate_to(OrientationPositions orient) {
 		"0", "-1", "1", "1", "0", "0", "0", "0", "1", (char *) NULL};
 	const char * const tsinverted[] = {xinput, "set-prop", touchScreenName, "Coordinate Transformation Matrix",
 		"-1", "0", "1", "0", "-1", "1", "0", "0", "1", (char *) NULL};
+	const char * const tpenabled[] = {xinput, "enable", touchPadName, (char *) NULL};
+	const char * const tpdisabled[] = {xinput, "disable", touchPadName, (char *) NULL};
+
 	int status = 0, pid;
 	const char *orientation = symbolic_orientation(orient);
 
@@ -205,20 +209,19 @@ void rotate_to(OrientationPositions orient) {
 	} else {
 		wait(&status);
 		if (status) printf("First child (xrandr) returned %d\n", status);
-
-		if (0 != strlen(touchScreenName) && 0 == (pid = fork())) { /* rotate the touchscreen */
+		if(0 != strlen(touchPadName) && 0 == (pid = fork())) {
 			switch (orient) {
 				case TOP:
-					execv(xinput, (char * const *)(tsnormal));
+					execv(xinput, (char *const *) (tpenabled));
 					break;
 				case BOTTOM:
-					execv(xinput, (char * const *)(tsinverted));
+					execv(xinput, (char *const *) (tpdisabled));
 					break;
 				case LEFT:
-					execv(xinput, (char * const *)(tsleft));
+					execv(xinput, (char *const *) (tpdisabled));
 					break;
 				case RIGHT:
-					execv(xinput, (char * const *)(tsright));
+					execv(xinput, (char *const *) (tpdisabled));
 					break;
 				case FLAT:
 				default:
@@ -227,6 +230,28 @@ void rotate_to(OrientationPositions orient) {
 		} else {
 			wait(&status);
 			if (status) printf("Second child (xinput) returned %d\n", status);
+			if (0 != strlen(touchScreenName) && 0 == (pid = fork())) { /* rotate the touchscreen */
+				switch (orient) {
+					case TOP:
+						execv(xinput, (char *const *) (tsnormal));
+						break;
+					case BOTTOM:
+						execv(xinput, (char *const *) (tsinverted));
+						break;
+					case LEFT:
+						execv(xinput, (char *const *) (tsleft));
+						break;
+					case RIGHT:
+						execv(xinput, (char *const *) (tsright));
+						break;
+					case FLAT:
+					default:
+						break;
+				}
+			} else {
+				wait(&status);
+				if (status) printf("Second child (xinput) returned %d\n", status);
+			}
 		}
 	}
 }
@@ -286,6 +311,7 @@ int main(int argc, char **argv) {
 	// Update default settings
 	config.device_name = "accel_3d";
 	touchScreenName = config.or_touchScreenName;
+	touchPadName = config.or_touchPadName;
 	debug_level = config.debug_level;
 
 	/* Arguments definition */
@@ -303,6 +329,7 @@ Options:\n\
   --usleep=time			Polling sleep time in microseconds [%u]\n\
   --debug=level			Print out debugging information (-1 through 4) [%d]\n\
   --touchscreen=ts_name		TouchScreen name [%s]\n\
+  --touchPad=tp_name		TouchPad name [%s]\n\
 \n\
 orientation responds to single SIGUSR1 interrupts by toggling whether it\n\
 rotates the screen and two SIGUSR1 interrupts within a second or two by \n\
@@ -310,7 +337,7 @@ rotating the screen clockwise and suspending rotations.\n\
 Use via something like\n\
     pkill --signal SIGUSR1 --exact orientation\n",
 			config.iterations, config.device_name, config.poll_timeout, config.debug_level,
-			config.or_touchScreenName);
+			config.or_touchScreenName, config.or_touchPadName);
 
 	/* Device info */
 	Device_info info;
@@ -327,13 +354,14 @@ Use via something like\n\
 		{"count", required_argument, 0, 'c'},
 		{"name", required_argument, 0, 'n'},
 		{"touchscreen", required_argument, 0, 't'},
+		{"touchpad", required_argument, 0, 'p'},
 		{"usleep", required_argument, 0, 'u'},
 		{"debug", required_argument, 0, 'd'},
 		{0, 0, 0, 0}
 	};
 	int option_index = 0;
 
-	while ((c = getopt_long(argc, argv, "c:n:d:t:u:", long_options, &option_index))
+	while ((c = getopt_long(argc, argv, "c:n:d:t:p:u:", long_options, &option_index))
 			!= -1) {
 		switch (c) {
 			case 0:
@@ -347,6 +375,10 @@ Use via something like\n\
 			case 't':
 				config.or_touchScreenName = optarg;
 				touchScreenName = optarg;
+				break;
+			case 'p':
+				config.or_touchPadName = optarg;
+				touchPadName = optarg;
 				break;
 			case 'd':
 				config.debug_level = strtol(optarg, &dummy, 10);
