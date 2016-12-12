@@ -31,9 +31,9 @@ the required drivers and a working ideapad-laptop module.
    There is also a generic program that can be used to test sensors -
    generic_buffer. 
 
-   You need to have the libXrandr-devel package installed.
+   You need to have the libXrandr-devel and libnotify-dev package installed.
    ```bash
-   sudo apt-get install libxrandr-dev
+   sudo apt-get install libxrandr-dev libnotify-dev
    ```
 
    To compile and install:
