@@ -6,12 +6,15 @@ PWD := $(shell pwd)
 ifeq "$(NAME)" "Fedora"
 KDIR := /usr/src/kernels/$(shell uname -r)
 MODNAME := ideapad-laptop.ko
+UDEVDIR := /usr/lib/udev/hwdb.d
 else ifeq ("$(NAME)",$(filter "$(NAME)","arch" "Antergos"))
 KDIR := /usr/lib/modules/$(shell uname -r)/build
 MODNAME := ideapad-laptop.ko.gz
+UDEVDIR := /usr/lib/udev/hwdb.d
 else
 KDIR := /usr/src/linux-headers-$(shell uname -r)
 MODNAME := ideapad-laptop.ko
+UDEVDIR := /lib/udev/hwdb.d
 endif
 MODDIR := /lib/modules/$(shell uname -r)/kernel/drivers/platform/x86
 
@@ -36,7 +39,7 @@ install-driver:
 	install --owner=root --group=root --mode=644 $(MODNAME) $(MODDIR)
 
 install-keys:
-	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb /usr/lib/udev/hwdb.d
+	install --owner=root --group=root --mode=644 90-yoga-keyboard.hwdb $(UDEVDIR)
 	udevadm hwdb --update
 	cp -pr xkeycode /home/${LOGNAME}/.Xmodmap
 
