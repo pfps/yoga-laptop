@@ -31,6 +31,7 @@ extern "C" {
 
 		/* Orientation config*/
 		const char *or_touchScreenName;
+		const char *or_wacomPenName;
 
 		/* Light config */
 		// Top value used for scaling
@@ -45,6 +46,7 @@ extern "C" {
 
 		// Orientation
 		"ELAN Touchscreen",
+		"Wacom ISDv4 EC Pen stylus",
 
 		// Light
 		1400,
