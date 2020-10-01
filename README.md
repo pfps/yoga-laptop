@@ -107,3 +107,5 @@ the required drivers and a working ideapad-laptop module.
    Reboot your system to load the drivers
 
    You need to have the libXrandr-devel package installed.
+hope you like this tutorial.
+Thank you.
